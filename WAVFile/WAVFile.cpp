@@ -21,7 +21,6 @@ WAVFile::WAVFile(WAVHeader& header)
 WAVFile::~WAVFile()
 {
 	delete this->header;
-	delete this->data;
 }
 
 int WAVFile::read_wav_file(std::ifstream& file)
@@ -90,7 +89,6 @@ int WAVFile::read_wav_file(std::ifstream& file)
 int WAVFile::write_wav_file(std::ofstream& file)
 {
 	std::cout << "Writing wav file. " << std::endl;
-	dump_info();
 
 	//Write .wav file header
 	//Note: file must be created in binary mode
@@ -110,9 +108,11 @@ int WAVFile::write_wav_file(std::ofstream& file)
 	//Write the audio samples
 	for (long i = 0; i < this->data->size; i++)
 		write_word(file, (short)(this->data->values[i]), this->header->frame_size);
+	this->header->data_size = this->data->size;
 
 	//Final file size to fix the chunk size above
 	size_t file_length = file.tellp();
+	this->header->file_size = (unsigned int)file_length;
 
 	//Fix data chunk header to contain data size
 	file.seekp(data_chunk_pos + 4);
@@ -121,6 +121,8 @@ int WAVFile::write_wav_file(std::ofstream& file)
 	//Fix the file header to contain the proper RIFF chunk size, which is file size - 8 bytes
 	file.seekp(0 + 4);
 	write_word(file, file_length - 8, 4);
+
+	dump_info();
 
 	std::cout << "Success." << std::endl;
 
