@@ -58,6 +58,8 @@ private:
 
 	template <typename Word>
 	std::ostream& write_word(std::ostream& out_stream, Word value, unsigned int size = sizeof(Word));
+
+	void dump_info();
 };
 
 #endif
