@@ -40,6 +40,8 @@ public:
 	int read_wav_file(std::ifstream& file);
 	int write_wav_file(std::ofstream& file);
 	WAVHeader* get_header_info() { return this->header; }
+	buffer<short>* get_buffer() { return this->data; }
+	unsigned int get_size() { return this->header->data_size / this->header->frame_size; }
 	short operator() (long index) 
 	{ 
 		if (index < this->data->size)
