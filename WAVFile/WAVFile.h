@@ -15,6 +15,8 @@
 #define PCM_WAV_FRAME_SIZE 2
 //Number of channels
 #define PCM_WAV_CHANNELS 1
+//Size of .wav header in bytes (until data start)
+#define PCM_WAV_HEADER_SIZE 40
 
 //Struct for wav header info
 struct WAVHeader
@@ -41,6 +43,14 @@ public:
 	int write_wav_file(std::ofstream& file);
 	WAVHeader* get_header_info() { return this->header; }
 	buffer<short>* get_buffer() { return this->data; }
+	void set_buffer(buffer<short>& data) 
+	{ 
+		this->data = &data;
+		this->header->sample_rate = data.sample_rate;
+		this->header->byte_rate = data.sample_rate * PCM_WAV_FRAME_SIZE;
+		this->header->data_size = this->data->size * this->header->frame_size;
+		this->header->file_size = this->header->data_size + PCM_WAV_HEADER_SIZE;
+	}
 	unsigned int get_size() { return this->header->data_size / this->header->frame_size; }
 	short operator() (long index) 
 	{ 
