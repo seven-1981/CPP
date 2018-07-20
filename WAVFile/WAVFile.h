@@ -16,7 +16,7 @@
 //Number of channels
 #define PCM_WAV_CHANNELS 1
 //Size of .wav header in bytes (until data start)
-#define PCM_WAV_HEADER_SIZE 40
+#define PCM_WAV_HEADER_SIZE 44
 
 //Struct for wav header info
 struct WAVHeader
@@ -36,24 +36,20 @@ struct WAVHeader
 class WAVFile
 {
 public:
-	WAVFile(WAVHeader& header);
+	WAVFile();
 	~WAVFile();
 
 	int read_wav_file(std::ifstream& file);
 	int write_wav_file(std::ofstream& file);
+
 	WAVHeader* get_header_info() { return this->header; }
 	buffer<short>* get_buffer() { return this->data; }
-	void set_buffer(buffer<short>& data) 
-	{ 
-		this->data = &data;
-		this->header->sample_rate = data.sample_rate;
-		this->header->byte_rate = data.sample_rate * PCM_WAV_FRAME_SIZE;
-		this->header->data_size = this->data->size * this->header->frame_size;
-		this->header->file_size = this->header->data_size + PCM_WAV_HEADER_SIZE;
-	}
+	void set_buffer(buffer<short>& data);
+
 	unsigned int get_size() { return this->header->data_size / this->header->frame_size; }
-	short operator() (long index) 
-	{ 
+
+	short operator() (long index)
+	{
 		if (index < this->data->size)
 			return this->data->values[index];
 		else
@@ -61,7 +57,6 @@ public:
 	}
 
 private:
-	WAVFile();
 	WAVHeader* header;
 	buffer<short>* data;
 
@@ -70,6 +65,8 @@ private:
 
 	template <typename Word>
 	std::ostream& write_word(std::ostream& out_stream, Word value, unsigned int size = sizeof(Word));
+
+	void create_header_info();
 
 	void dump_info();
 };
