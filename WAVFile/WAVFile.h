@@ -48,14 +48,6 @@ public:
 
 	unsigned int get_size() { return this->header->data_size / this->header->frame_size; }
 
-	short operator() (long index)
-	{
-		if (index < this->data->size)
-			return this->data->values[index];
-		else
-			return 0;
-	}
-
 private:
 	WAVHeader* header;
 	buffer<short>* data;
