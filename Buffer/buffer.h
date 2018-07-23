@@ -26,16 +26,12 @@ public:
 			this->values[i] = rhs.values[i];
 	}
 
-	buffer<T>& operator=(const buffer<T>& rhs)
-	{
-		this->size = rhs.size;
-		this->sample_rate = rhs.sample_rate;
-		for (long i = 0; i < rhs.size; i++)
-			this->values[i] = rhs.values[i];
-		return *this;
-	}
+	long get_size() const { return this->size; }
+	long get_sample_rate() const { return this->sample_rate; }
 
 	T* values;
+
+private:
 	long size;
 	long sample_rate;
 };
