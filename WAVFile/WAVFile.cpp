@@ -114,7 +114,7 @@ int WAVFile::write_wav_file(std::ofstream& file)
 	file << "data----";		//Chunk size to be filled in later
 
 	//Write the audio samples
-	for (long i = 0; i < this->data->size; i++)
+	for (long i = 0; i < this->data->get_size(); i++)
 		write_word(file, (short)(this->data->values[i]), this->header->frame_size);
 
 	//Final file size to fix the chunk size above
@@ -187,9 +187,9 @@ std::ostream& WAVFile::write_word(std::ostream& out_stream, Word value, unsigned
 void WAVFile::create_header_info()
 {
 	//The buffer has been set - calculate missing .wav header info
-	this->header->sample_rate = this->data->sample_rate;
-	this->header->byte_rate = this->data->sample_rate * PCM_WAV_FRAME_SIZE;
-	this->header->data_size = this->data->size * PCM_WAV_FRAME_SIZE;
+	this->header->sample_rate = this->data->get_sample_rate();
+	this->header->byte_rate = this->data->get_sample_rate() * PCM_WAV_FRAME_SIZE;
+	this->header->data_size = this->data->get_size() * PCM_WAV_FRAME_SIZE;
 	this->header->file_size = this->header->data_size + PCM_WAV_HEADER_SIZE;
 }
 
