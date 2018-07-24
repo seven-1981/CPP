@@ -312,15 +312,38 @@ void create_fft_buffer(const buffer<T>& normbuffer, buffer<U>& fftbuffer)
 }
 
 template <typename T>
+long pow2_size(const buffer<T>& inbuffer)
+{
+	return pow(2.0, floor(log2(inbuffer.get_size())));
+}
+
+template <typename T>
 void apply_window(const buffer<T>& inbuffer, buffer<double>& outbuffer, std::function<double(double, double)> f)
 {
 	for (long i = 0; i < inbuffer.get_size(); i++)
 		outbuffer.values[i] = (double)inbuffer.values[i] * f((double)i, (double)inbuffer.get_size());
 }
 
+template <typename T>
+void apply_window(const buffer<T>& inbuffer, buffer<double>& outbuffer, std::function<double(double, double, double)> f, double a)
+{
+	for (long i = 0; i < inbuffer.get_size(); i++)
+		outbuffer.values[i] = (double)inbuffer.values[i] * f((double)i, (double)inbuffer.get_size(), a);
+}
+
 double hanning(double x, double N)
 {
 	return 0.5 * (1 - cos(2 * PI * x / (N - 1)));
+}
+
+double tukey(double x, double N, double alpha)
+{
+	if (x >= 0 && x < (alpha * (N - 1) / 2))
+		return 0.5 * (1 + cos(PI * ((2 * x / (alpha * (N - 1))) - 1)));
+	else if ((N - 1) * (1 - alpha / 2) < x && x <= (N - 1))
+		return 0.5 * (1 + cos(PI * (1 - 2 / alpha + (2 * x / (alpha * (N - 1))))));
+	else
+		return 1.0;
 }
 
 #endif
