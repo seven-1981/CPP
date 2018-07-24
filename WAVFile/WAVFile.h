@@ -49,7 +49,7 @@ public:
 	unsigned int get_size() { return this->header->data_size / this->header->frame_size; }
 
 private:
-	WAVHeader* header;
+	WAVHeader * header;
 	buffer<short>* data;
 
 	template <typename Word>
