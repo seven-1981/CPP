@@ -83,7 +83,7 @@ int WAVFile::read_wav_file(std::ifstream& file)
 	this->data = new buffer<short>(data_size / frame_size, sample_rate);
 
 	//Transfer data to buffer
-	for (long i = 0; i < (data_size / (unsigned int)frame_size); i++)
+	for (long i = 0; i < (data_size / frame_size); i++)
 		this->data->values[i] = read_word<short>(file, true);
 
 	std::cout << "Success." << std::endl;
@@ -114,7 +114,8 @@ int WAVFile::write_wav_file(std::ofstream& file)
 	file << "data----";		//Chunk size to be filled in later
 
 	//Write the audio samples
-	for (long i = 0; i < this->data->get_size(); i++)
+	long size = this->data->get_size();
+	for (long i = 0; i < size; i++)
 		write_word(file, (short)(this->data->values[i]), this->header->frame_size);
 
 	//Final file size to fix the chunk size above
