@@ -14,9 +14,12 @@ double tempval;	//Used for SWAP macro
 template <typename T>
 T get_max_sample_value(const buffer<T>& buffer)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
 	//This function retrieves the max value from the buffer
 	T max_value = std::numeric_limits<T>::min();
-	for (long i = 0; i < buffer.get_size(); i++)
+	for (long i = 0; i < size; i++)
 	{
 		if (buffer.values[i] > max_value)
 			max_value = buffer.values[i];
@@ -28,9 +31,12 @@ T get_max_sample_value(const buffer<T>& buffer)
 template <typename T>
 T get_min_sample_value(const buffer<T>& buffer)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
 	//This function retrieves the min value from the buffer
 	T min_value = std::numeric_limits<T>::max();
-	for (long i = 0; i < buffer.get_size(); i++)
+	for (long i = 0; i < size; i++)
 	{
 		if (buffer.values[i] < min_value)
 			min_value = buffer.values[i];
@@ -42,6 +48,9 @@ T get_min_sample_value(const buffer<T>& buffer)
 template <typename T>
 void maximize_volume(buffer<T>& buffer)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
 	//Get max and min sample values of buffer
 	T max = get_max_sample_value(buffer);
 	T min = get_min_sample_value(buffer);
@@ -56,7 +65,7 @@ void maximize_volume(buffer<T>& buffer)
 		factor = abs(((double)std::numeric_limits<T>::min()) / min);
 
 	//Maximize the buffer
-	for (long i = 0; i < buffer.get_size(); i++)
+	for (long i = 0; i < size; i++)
 	{
 		buffer.values[i] = (T)((double)buffer.values[i] * factor);
 	}
@@ -65,11 +74,14 @@ void maximize_volume(buffer<T>& buffer)
 template <typename T>
 void gain(buffer<T>& buffer, double gain)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
 	//Declare maximization factor
 	double factor = gain;
 
 	//Maximize the buffer
-	for (long i = 0; i < buffer.get_size(); i++)
+	for (long i = 0; i < size; i++)
 	{
 		buffer.values[i] = (T)((double)buffer.values[i] * factor);
 	}
@@ -78,12 +90,15 @@ void gain(buffer<T>& buffer, double gain)
 template <typename T>
 double get_mean_value(const buffer<T>& buffer)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
 	//Calculate average value of all values in the buffer
 	double avg = 0.0;
 
 	//Go through values and calculate mean value
-	for (long i = 0; i < buffer.get_size(); i++)
-		avg += (double)buffer.values[i] / buffer.get_size();
+	for (long i = 0; i < size; i++)
+		avg += (double)buffer.values[i] / size;
 
 	return avg;
 }
@@ -91,6 +106,10 @@ double get_mean_value(const buffer<T>& buffer)
 template <typename T>
 double get_variance_value(const buffer<T>& buffer)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
+	//Variance return value
 	double var = 0.0;
 
 	//Get average value
@@ -98,52 +117,68 @@ double get_variance_value(const buffer<T>& buffer)
 	double sq = 0.0, av = 0.0;
 
 	//Go through values and calculate variance
-	for (long i = 0; i < buffer.get_size(); i++)
+	for (long i = 0; i < size; i++)
 	{
 		sq += (double)buffer.values[i] * (double)buffer.values[i];
 		av += (double)buffer.values[i];
 	}
 
-	var = (sq - (av * av / buffer.get_size())) / (buffer.get_size() - 1.0);
+	var = (sq - (av * av / size)) / (size - 1.0);
 
 	return var;
 }
 
 template <typename T>
-void combine_buffers(const buffer<T>& buffer_L, const buffer<T>& buffer_R, buffer<T>& outbuffer)
+void combine_buffers(const buffer<T>& buffer_X, const buffer<T>& buffer_Y, buffer<T>& outbuffer)
 {
-	for (long i = 0; i < buffer_L.get_size(); i++)
+	//Get buffer size
+	long size = buffer_X.get_size();
+
+	for (long i = 0; i < size; i++)
 	{
-		outbuffer.values[i * 2] = buffer_L.values[i];
-		outbuffer.values[i * 2 + 1] = buffer_R.values[i];
+		outbuffer.values[i * 2] = buffer_X.values[i];
+		outbuffer.values[i * 2 + 1] = buffer_Y.values[i];
 	}
 }
 
 template <typename T>
-void separate_buffers(const buffer<T>& inbuffer, buffer<T>& outbuffer_L, buffer<T>& outbuffer_R)
+void separate_buffers(const buffer<T>& inbuffer, buffer<T>& outbuffer_X, buffer<T>& outbuffer_Y)
 {
-	for (long i = 0; i < outbuffer_L.get_size(); i++)
+	//Get buffer size
+	long size = outbuffer_X.get_size();
+
+	for (long i = 0; i < size; i++)
 	{
-		outbuffer_L.values[i] = inbuffer.values[i * 2];
-		outbuffer_R.values[i] = inbuffer.values[i * 2 + 1];
+		outbuffer_X.values[i] = inbuffer.values[i * 2];
+		outbuffer_Y.values[i] = inbuffer.values[i * 2 + 1];
 	}
 }
 
 void doublify(const buffer<short>& sbuffer, buffer<double>& dbuffer)
 {
-	for (long i = 0; i < sbuffer.get_size(); i++)
+	//Get buffer size
+	long size = sbuffer.get_size();
+
+	for (long i = 0; i < size; i++)
 		dbuffer.values[i] = (double)sbuffer.values[i];
 }
 
 void shortify(const buffer<double>& dbuffer, buffer<short>& sbuffer)
 {
-	for (long i = 0; i < dbuffer.get_size(); i++)
+	//Get buffer size
+	long size = dbuffer.get_size();
+
+	for (long i = 0; i < size; i++)
 		sbuffer.values[i] = (short)dbuffer.values[i];
 }
 
 template <typename T>
 void normalize(buffer<T>& buffer, T maxvalue)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
+	//Highest value in buffer is equal to datatype max
 	double max = get_max_sample_value(buffer);
 	double min = get_min_sample_value(buffer);
 	double factor;
@@ -153,25 +188,34 @@ void normalize(buffer<T>& buffer, T maxvalue)
 	else
 		factor = (double)-maxvalue / min;
 
-	for (long i = 0; i < buffer.get_size(); i++)
+	for (long i = 0; i < size; i++)
 		buffer.values[i] = (T)((double)buffer.values[i] * factor);
 }
 
 template <typename T>
 void rectify(buffer<T>& buffer)
 {
-	for (long i = 0; i < buffer.get_size(); i++)
+	//Get buffer size
+	long size = buffer.get_size();
+
+	for (long i = 0; i < size; i++)
 		buffer.values[i] = abs(buffer.values[i]);
 }
 
 template <typename T>
 double get_autocorr(double lag, const buffer<T>& buffer)
 {
+	//Get buffer size
+	long size = buffer.get_size();
+
+	//Get sample rate
+	long sample_rate = buffer.get_sample_rate();
+
 	//Calculate time axis - lag is in seconds
-	double time_max = (double)buffer.get_size() / buffer.get_sample_rate();
+	double time_max = (double)size / sample_rate;
 
 	//Calculate number of samples corresponding to desired lag - division /2 due to left-right
-	long lag_samples = (long)ceil((lag / time_max) * buffer.get_size());
+	long lag_samples = (long)ceil((lag / time_max) * size);
 
 	//Calculate average
 	double average = get_mean_value(buffer);
@@ -181,10 +225,10 @@ double get_autocorr(double lag, const buffer<T>& buffer)
 
 	//Calculate autocorrelation
 	double autocorr = 0.0;
-	for (long i = 0; i < buffer.get_size() - lag_samples; i++)
+	for (long i = 0; i < size - lag_samples; i++)
 		autocorr += (((double)buffer.values[i] - average) * ((double)buffer.values[i + lag_samples] - average));
 
-	autocorr = autocorr / (buffer.get_size() - lag_samples);
+	autocorr = autocorr / (size - lag_samples);
 	autocorr = autocorr / variance;
 	autocorr *= autocorr;
 
@@ -194,30 +238,39 @@ double get_autocorr(double lag, const buffer<T>& buffer)
 template <typename T>
 double get_rms_value(const buffer<T>& inbuffer)
 {
-	buffer<double> dbuffer(inbuffer.get_size(), inbuffer.get_sample_rate());
+	//Get buffer size
+	long size = inbuffer.get_size();
 
-	for (long i = 0; i < inbuffer.get_size(); i++)
-		dbuffer.values[i] = ((double)inbuffer.values[i] * (double)inbuffer.values[i]);
+	//RMS value
+	double rms_value;
 
-	double mean = get_mean_value(dbuffer);
+	for (long i = 0; i < size; i++)
+		rms_value += ((double)inbuffer.values[i] * (double)inbuffer.values[i]) / size;
 
-	return sqrt(mean);
+	return sqrt(rms_value);
 }
 
 template <typename T>
 void downsample_buffer(const buffer<T>& inbuffer, buffer<T>& outbuffer)
 {
-	for (long i = 0; i < outbuffer.get_size() * 2; i += 2)
+	//Get buffer size
+	long size = outbuffer.get_size();
+
+	for (long i = 0; i < size * 2; i += 2)
 		outbuffer.values[i / 2] = (T)(((double)inbuffer.values[i] + (double)inbuffer.values[i + 1]) / 2.0);
 }
 
 template <typename T>
 void envelope_filter(const buffer<T>& inbuffer, buffer<double>& outbuffer, double recovery)
 {
+	//Get buffer size
+	long size = inbuffer.get_size();
+
 	T env_in;
 	T peak_env = 0;
 	double release = exp(-1.0 / (inbuffer.get_sample_rate() * recovery));
-	for (long i = 0; i < inbuffer.get_size(); i++)
+
+	for (long i = 0; i < size; i++)
 	{
 		env_in = (T)abs(inbuffer.values[i]);
 		if (env_in > peak_env)
@@ -235,8 +288,11 @@ void envelope_filter(const buffer<T>& inbuffer, buffer<double>& outbuffer, doubl
 template <typename T>
 void perform_fft(const buffer<T>& time_dom, buffer<double>& freq_dom, int sign)
 {
-	// Put data in complex buffer
-	for (long i = 0; i < time_dom.get_size(); i++)
+	//Get buffer size
+	long size = time_dom.get_size();
+
+	// Put data in complex buffer - only real data, imaginary is zero
+	for (long i = 0; i < size; i++)
 	{
 		freq_dom.values[i * 2] = (double)time_dom.values[i];
 		freq_dom.values[i * 2 + 1] = 0;
@@ -246,8 +302,8 @@ void perform_fft(const buffer<T>& time_dom, buffer<double>& freq_dom, int sign)
 	double wtemp, wr, wpr, wpi, wi, theta;
 	double tempr, tempi;
 
-	// reverse-binary reindexing
-	n = time_dom.get_size() << 1;
+	//Reverse-binary reindexing
+	n = size << 1;
 	j = 1;
 	for (i = 1; i < n; i += 2)
 	{
@@ -256,7 +312,7 @@ void perform_fft(const buffer<T>& time_dom, buffer<double>& freq_dom, int sign)
 			SWAP(freq_dom.values[j - 1], freq_dom.values[i - 1]);
 			SWAP(freq_dom.values[j], freq_dom.values[i]);
 		}
-		m = time_dom.get_size();
+		m = size;
 		while (m >= 2 && j > m)
 		{
 			j -= m;
@@ -265,7 +321,7 @@ void perform_fft(const buffer<T>& time_dom, buffer<double>& freq_dom, int sign)
 		j += m;
 	}
 
-	// here begins the Danielson-Lanczos section
+	//Here begins the Danielson-Lanczos section
 	mmax = 2;
 	while (n > mmax)
 	{
@@ -297,38 +353,48 @@ void perform_fft(const buffer<T>& time_dom, buffer<double>& freq_dom, int sign)
 	}
 }
 
-template <typename T, typename U>
-void create_fft_buffer(const buffer<T>& normbuffer, buffer<U>& fftbuffer)
+template <typename T1, typename T2>
+void create_fft_buffer(const buffer<T1>& timebuffer, buffer<T2>& fftbuffer)
 {
-	double num_samples = pow(2.0, ceil(log2(normbuffer.get_size())));
-
-	for (long i = 0; i < fftbuffer.get_size(); i++)
+	//Check if fftbuffer is already initialized
+	if (fftbuffer.values == nullptr)
 	{
-		if (i < normbuffer.get_size())
-			fftbuffer.values[i] = normbuffer.values[i];
-		else
-			fftbuffer.values[i] = 0;
+		//Not initialized
+		fftbuffer.init_buffer(pow2_size(timebuffer), timebuffer.get_sample_rate());
 	}
+
+	//Get buffer sizes
+	long time_size = timebuffer.get_size();
+	long fft_size = fftbuffer.get_size();
+
+	for (long i = 0; i < fft_size; i++)
+		fftbuffer.values[i] = (T2)timebuffer.values[i];
 }
 
 template <typename T>
 long pow2_size(const buffer<T>& inbuffer)
 {
-	return pow(2.0, floor(log2(inbuffer.get_size())));
+	return (long)pow(2.0, floor(log2(inbuffer.get_size())));
 }
 
 template <typename T>
 void apply_window(const buffer<T>& inbuffer, buffer<double>& outbuffer, std::function<double(double, double)> f)
 {
-	for (long i = 0; i < inbuffer.get_size(); i++)
-		outbuffer.values[i] = (double)inbuffer.values[i] * f((double)i, (double)inbuffer.get_size());
+	//Get buffer size
+	long size = inbuffer.get_size();
+
+	for (long i = 0; i < size; i++)
+		outbuffer.values[i] = (double)inbuffer.values[i] * f((double)i, (double)size);
 }
 
 template <typename T>
 void apply_window(const buffer<T>& inbuffer, buffer<double>& outbuffer, std::function<double(double, double, double)> f, double a)
 {
-	for (long i = 0; i < inbuffer.get_size(); i++)
-		outbuffer.values[i] = (double)inbuffer.values[i] * f((double)i, (double)inbuffer.get_size(), a);
+	//Get buffer size
+	long size = inbuffer.get_size();
+
+	for (long i = 0; i < size; i++)
+		outbuffer.values[i] = (double)inbuffer.values[i] * f((double)i, (double)size, a);
 }
 
 double hanning(double x, double N)
