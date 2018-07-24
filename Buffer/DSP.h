@@ -412,4 +412,25 @@ double tukey(double x, double N, double alpha)
 		return 1.0;
 }
 
+template <typename T>
+void lowcut_freq(const buffer<T>& inbuffer, buffer<double>& outbuffer, double freq)
+{
+	//Get buffer size
+	long size = outbuffer.get_size();
+
+	//Get frequency resolution
+	double freqres = (double)inbuffer.get_sample_rate() / inbuffer.get_size();
+
+	//Get maximum bin for truncation
+	long binmax = (long)(freq / freqres);
+
+	for (long i = 0; i < size; i++)
+	{
+		if (i < binmax)
+			outbuffer.values[i] = inbuffer.values[i];
+		else
+			outbuffer.values[i] = 0.0;
+	}
+}
+
 #endif
