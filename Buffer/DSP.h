@@ -356,25 +356,33 @@ void perform_fft(const buffer<T>& time_dom, buffer<double>& freq_dom, int sign)
 template <typename T1, typename T2>
 void create_fft_buffer(const buffer<T1>& timebuffer, buffer<T2>& fftbuffer)
 {
-	//Check if fftbuffer is already initialized
-	if (fftbuffer.values == nullptr)
-	{
-		//Not initialized
-		fftbuffer.init_buffer(pow2_size(timebuffer), timebuffer.get_sample_rate());
-	}
-
 	//Get buffer sizes
 	long time_size = timebuffer.get_size();
 	long fft_size = fftbuffer.get_size();
 
-	for (long i = 0; i < fft_size; i++)
-		fftbuffer.values[i] = (T2)timebuffer.values[i];
+	//Determine if zero padding is necessary
+	if (time_size < fft_size)
+	{
+		for (long i = 0; i < fft_size; i++)
+			if (i >= time_size)
+				fftbuffer.values[i] = (T2)timebuffer.values[i];
+			else
+				fftbuffer.values[i] = 0.0;
+	}
+	else
+	{
+		for (long i = 0; i < fft_size; i++)
+			fftbuffer.values[i] = (T2)timebuffer.values[i];
+	}
 }
 
 template <typename T>
-long pow2_size(const buffer<T>& inbuffer)
+long pow2_size(const buffer<T>& inbuffer, bool floor_ceil)
 {
-	return (long)pow(2.0, floor(log2(inbuffer.get_size())));
+	if (floor_ceil == true)
+		return (long)pow(2.0, floor(log2(inbuffer.get_size())));
+	else
+		return (long)pow(2.0, ceil(log2(inbuffer.get_size())));
 }
 
 template <typename T>
@@ -413,7 +421,7 @@ double tukey(double x, double N, double alpha)
 }
 
 template <typename T>
-void lowcut_freq(const buffer<T>& inbuffer, buffer<double>& outbuffer, double freq)
+void cut_freq(const buffer<T>& inbuffer, buffer<double>& outbuffer, double freq_min, double freq_max)
 {
 	//Get buffer size
 	long size = outbuffer.get_size();
@@ -421,15 +429,49 @@ void lowcut_freq(const buffer<T>& inbuffer, buffer<double>& outbuffer, double fr
 	//Get frequency resolution
 	double freqres = (double)inbuffer.get_sample_rate() / inbuffer.get_size();
 
-	//Get maximum bin for truncation
-	long binmax = (long)(freq / freqres);
+	//Get minimum maximum bin for truncation
+	long binmin = (long)(freq_min / freqres);
+	long binmax = (long)(freq_max / freqres);
 
 	for (long i = 0; i < size; i++)
 	{
-		if (i < binmax)
+		if ((i > binmin) && (i < binmax))
 			outbuffer.values[i] = inbuffer.values[i];
 		else
 			outbuffer.values[i] = 0.0;
+	}
+}
+
+template <typename T>
+void moving_average(const buffer<T>& inbuffer, buffer<double>& outbuffer, long N)
+{
+	//Moving average filtered values
+	double ma_value = 0.0;
+
+	//Get buffer size
+	long size = inbuffer.get_size();
+	long start, num;
+
+	for (long i = 0; i < size; i++)
+	{
+		//Calculate start and stop indexes
+		if (i < N) 
+		{ 
+			start = 0; 
+			num = i + 1; 
+		}
+		else
+		{
+			start = i - N + 1;
+			num = N;
+		}
+
+		//Calculate moving average
+		for (long j = start; j < start + num; j++)
+			ma_value = ma_value + (double)inbuffer.values[j] / num;
+		
+		outbuffer.values[i] = ma_value;
+		ma_value = 0.0;
 	}
 }
 
