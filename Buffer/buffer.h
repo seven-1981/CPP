@@ -38,18 +38,18 @@ public:
 	long get_size() const { return this->size; }
 	long get_sample_rate() const { return this->sample_rate; }
 
+	T* values;
+
+private:
+	long size;
+	long sample_rate;
+
 	void init_buffer(long size, long sample_rate)
 	{
 		this->values = (T*)malloc(size * sizeof(T));
 		this->size = size;
 		this->sample_rate = sample_rate;
 	}
-
-	T* values;
-
-private:
-	long size;
-	long sample_rate;
 };
 
 #endif
