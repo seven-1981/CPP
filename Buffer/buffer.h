@@ -70,7 +70,7 @@ public:
 	}
 
 private:
-	T* values;
+	T * values;
 	long size;
 	long sample_rate;
 
