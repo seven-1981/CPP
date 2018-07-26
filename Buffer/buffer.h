@@ -41,7 +41,7 @@ public:
 
 	const T& operator[](long index) const
 	{
-		if (this->initialized == true)
+		if (this->initialized == true && index < this->size)
 			return this->values[index];
 		else
 			return this->cnull;
