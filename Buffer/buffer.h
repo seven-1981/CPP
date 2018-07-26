@@ -39,6 +39,22 @@ public:
 		return *this;
 	}
 
+	const T& operator[](long index) const
+	{
+		if (this->initialized == true)
+			return this->values[index];
+		else
+			return this->cnull;
+	}
+
+	T& operator[](long index)
+	{
+		if (this->initialized == true && index < this->size)
+			return this->values[index];
+		else
+			return this->null;
+	}
+
 	long get_size() const { return this->size; }
 	long get_sample_rate() const { return this->sample_rate; }
 
@@ -53,12 +69,14 @@ public:
 		}
 	}
 
-	T* values;
-
 private:
+	T* values;
 	long size;
 	long sample_rate;
+
 	bool initialized;
+	T null = 0;
+	const T cnull = 0;
 };
 
 #endif
