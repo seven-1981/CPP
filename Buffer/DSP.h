@@ -46,6 +46,29 @@ T get_min_sample_value(const buffer<T>& buffer)
 }
 
 template <typename T>
+long get_max_index(const buffer<T>& buffer)
+{
+	//Get buffer size
+	long size = buffer.get_size();
+	T max_value = std::numeric_limits<T>::min();
+
+	//Declare return value
+	long index;
+
+	//Get max value index
+	for (long i = 0; i < size; i++)
+	{
+		if (buffer[i] > max_value)
+		{
+			max_value = buffer[i];
+			index = i;
+		}
+	}
+
+	return index;
+}
+
+template <typename T>
 void maximize_volume(buffer<T>& buffer)
 {
 	//Get buffer size
@@ -455,10 +478,10 @@ void moving_average(const buffer<T>& inbuffer, buffer<double>& outbuffer, long N
 	for (long i = 0; i < size; i++)
 	{
 		//Calculate start and stop indexes
-		if (i < N) 
-		{ 
-			start = 0; 
-			num = i + 1; 
+		if (i < N)
+		{
+			start = 0;
+			num = i + 1;
 		}
 		else
 		{
@@ -469,10 +492,48 @@ void moving_average(const buffer<T>& inbuffer, buffer<double>& outbuffer, long N
 		//Calculate moving average
 		for (long j = start; j < start + num; j++)
 			ma_value = ma_value + (double)inbuffer[j] / num;
-		
+
 		outbuffer[i] = ma_value;
 		ma_value = 0.0;
 	}
+}
+
+void build_autocorr_array(const buffer<short>& inbuffer, buffer<double>& autocorr_array, double bpm_min, double bpm_max)
+{
+	//Get buffer size
+	long size = autocorr_array.get_size();
+
+	//Calculate lag values -> beats/minute to seconds/beat
+	double min_lag = (double)60 / bpm_max;
+	double max_lag = (double)60 / bpm_min;
+	double lag;
+
+	for (long i = 0; i < size; i++)
+	{
+		lag = min_lag + (max_lag - min_lag) / (double)size * (double)i;
+		autocorr_array[i] = get_autocorr(lag, inbuffer);
+	}
+}
+
+double extract_bpm_value(const buffer<double>& autocorr_array, double bpm_min, double bpm_max)
+{
+	//Get buffer size
+	long size = autocorr_array.get_size();
+
+	//Declare return value
+	long max_array_index = 0;
+
+	//Calculate lag values -> beats/minute to seconds/beat
+	double min_lag = (double)60 / bpm_max;
+	double max_lag = (double)60 / bpm_min;
+
+	//Get max value index from autocorr array
+	max_array_index = get_max_index(autocorr_array);
+
+	//Return the calculated bpm value from the max index
+	double bpm_lag = min_lag + (max_lag - min_lag) / size * max_array_index;
+
+	return 60.0 / bpm_lag;
 }
 
 #endif
