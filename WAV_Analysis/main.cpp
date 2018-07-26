@@ -8,7 +8,8 @@
 //Uses boost library. In Project options set include path to c:\program files\boost
 //and library path to C:\Program Files\Boost\stage\lib
 //boost lib files must be created first with b2.exe and bjam.exe
-//#include "gnuplot-iostream.h"
+//In addition, the define _CRT_SECURE_NO_WARNINGS must be added to the preprocessor defines
+#include "gnuplot-iostream.h"
 
 //Defines for bpm detection
 #define BPM_MAX_VALUE 200.0
@@ -22,59 +23,11 @@
 #define HI_FREQ 250.0
 
 //Defines for Plots
-//#define PLOT_WAVFILE
-//#define PLOT_FFT
+#define PLOT_WAVFILE
+#define PLOT_FFT
 //#define PLOT_INV_FFT
-//#define PLOT_AUTOCORR
+#define PLOT_AUTOCORR
 
-double extract_bpm_value(buffer<double>& autocorr_array, buffer<short>& inbuffer, buffer<double>& mov_avg)
-{
-	//Declare return value
-	double max_autocorr_value = 0.0;
-	long max_array_value = 0;
-
-	//Calculate lag values -> beats/minute to seconds/beat
-	double min_lag = (double)60 / (double)BPM_MAX_VALUE;
-	double max_lag = (double)60 / (double)BPM_MIN_VALUE;
-	double lag;
-
-	//Moving average filtered values
-	double ma_value = 0.0;
-
-	for (long i = 0; i < AUTOCORR_RES; i++)
-	{
-		lag = min_lag + (max_lag - min_lag) / (double)AUTOCORR_RES * (double)i;
-		autocorr_array.values[i] = get_autocorr(lag, inbuffer);
-
-		//Calculate moving average. Start if correct number of calculations
-		//have been made.
-		if (i >= MOV_AVG_SIZE)
-		{
-			for (int j = 0; j < MOV_AVG_SIZE; j++)
-			{
-				ma_value = ma_value + autocorr_array.values[i - MOV_AVG_SIZE + j] / MOV_AVG_SIZE;
-			}
-			mov_avg.values[i - MOV_AVG_SIZE] = ma_value;
-			ma_value = 0.0;
-
-			//Save max value
-			if (mov_avg.values[i - MOV_AVG_SIZE] > max_autocorr_value)
-			{
-				max_autocorr_value = mov_avg.values[i - MOV_AVG_SIZE];
-				max_array_value = i - MOV_AVG_SIZE;
-			}
-		}
-	}
-
-	//The lag of the moving average filter must be compensated.
-	//The max index value is shifted.
-	max_array_value *= AUTOCORR_RES / (AUTOCORR_RES - MOV_AVG_SIZE);
-
-	//Return the calculated bpm value from the max index
-	double bpm_lag = min_lag + (max_lag - min_lag) / AUTOCORR_RES * max_array_value;
-
-	return 60.0 / bpm_lag;
-}
 
 int main()
 {
@@ -105,19 +58,18 @@ int main()
 	buffer<short> wavfile_filt_buffer;	//Buffer with DFT filtered wav data
 
 	buffer<double> autocorr_array;		//Array with autocorrelation values
-	buffer<double> mov_avg;				//Array with autocorrelation values + internal moving average
 	buffer<double> autocorr_filt;		//Array with filtered autocorrelation values (moving average)
 	buffer<double> env_filt;			//Array with envelope filtered autocorr data
 
 	//*****************
 	//* WAV FILE READ *
 	//*****************
-	std::ifstream read_wav("./wavs/fast170.wav", std::ios_base::in | std::ios_base::binary);
+	std::ifstream read_wav("fast170.wav", std::ios_base::in | std::ios_base::binary);
 	if (read_wav.is_open() == false)
 		exit(-1);
 	wavfile.read_wav_file(read_wav);
 	read_wav.close();
-	std::cout << "The last frame is: " << wavfile.get_buffer()->values[wavfile.get_size() - 1] << std::endl;
+	std::cout << "The last frame is: " << (*wavfile.get_buffer())[wavfile.get_size() - 1] << std::endl;
 	sample_rate = wavfile.get_header_info()->sample_rate;
 
 	//******************************************
@@ -133,15 +85,15 @@ int main()
 	Gnuplot gp1("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
 	gp1 << "plot '-' with lines\n";
 	std::vector<double> data1;
-	long size1 = window_buffer.get_size();
+	long size1 = wavfile_buffer.get_size();
 	for (long i = 0; i < size1; i++)
-		data1.push_back(window_buffer.values[i]);
+		data1.push_back(wavfile_buffer[i]);
 	gp1.send1d(data1);
 #else
 	remove("windata.txt");
 	std::ofstream windowdata("windata.txt", std::ios_base::out | std::ios_base::trunc);
 	for (long i = 0; i < wavfile_buffer.get_size(); i++)
-		windowdata << wavfile_buffer.values[i] << "\n";
+		windowdata << wavfile_buffer[i] << "\n";
 	windowdata.close();
 #endif
 
@@ -166,13 +118,13 @@ int main()
 	gp2 << "plot '-' with lines\n";
 	std::vector<std::pair<double, double>> pair;
 	for (long i = 0; i < 5000; i++)
-		pair.push_back(std::pair<double, double>((double)i / 2 * freqres, 1.0 / pow2samples * sqrt(freq_domain.values[i] * freq_domain.values[i] + freq_domain.values[i + 1] * freq_domain.values[i + 1])));
+		pair.push_back(std::pair<double, double>((double)i / 2 * freqres, 1.0 / pow2samples * sqrt(freq_domain[i] * freq_domain[i] + freq_domain[i + 1] * freq_domain[i + 1])));
 	gp2.send1d(pair);
 #else
 	remove("fftdata.txt");
 	std::ofstream fftdata("fftdata.txt", std::ios_base::out | std::ios_base::trunc);
-	for (long i = 0; i < pow2samples; i+=2)
-		fftdata << (double)i / 2 * freqres << ", " << 1.0 / pow2samples * sqrt(freq_domain.values[i] * freq_domain.values[i] + freq_domain.values[i + 1] * freq_domain.values[i + 1]) << "\n";
+	for (long i = 0; i < pow2samples; i += 2)
+		fftdata << (double)i / 2 * freqres << ", " << 1.0 / pow2samples * sqrt(freq_domain[i] * freq_domain[i] + freq_domain[i + 1] * freq_domain[i + 1]) << "\n";
 	fftdata.close();
 #endif
 
@@ -202,7 +154,7 @@ int main()
 	//*****************************
 	wavfile_filt_buffer.init_buffer(pow2samples, sample_rate);
 	for (long i = 0; i < pow2samples; i++)
-		wavfile_filt_buffer.values[i] = (short)(1.0 / (double)sample_rate * time_filt.values[i]);
+		wavfile_filt_buffer[i] = (short)(1.0 / (double)sample_rate * time_filt[i]);
 
 	//*********************************
 	//* MAXIMIZE VOLUME/LEVEL OF DATA *
@@ -222,32 +174,13 @@ int main()
 	//* PERFORM AUTOCORRELATION AND EXTRACT BPM *
 	//*******************************************
 	autocorr_array.init_buffer(AUTOCORR_RES, sample_rate);
-	mov_avg.init_buffer(AUTOCORR_RES - MOV_AVG_SIZE, sample_rate);
-	bpm_value = extract_bpm_value(autocorr_array, wavfile_filt_buffer, mov_avg);
-	std::cout << "The BPM value is: " << bpm_value << std::endl;
-
-	//Testcode
-	//*********************************************
-	buffer<double> testbuffer(AUTOCORR_RES, sample_rate);
-	buffer<double> testbuffer2(AUTOCORR_RES, sample_rate);
-	testbuffer = autocorr_array;
-	moving_average(autocorr_array, testbuffer, MOV_AVG_SIZE);
-	envelope_filter(testbuffer, testbuffer2, ENV_FILT_REC);
-	remove("testdata.txt");
-	std::ofstream testdata("testdata.txt", std::ios_base::out | std::ios_base::trunc);
-	for (long i = 0; i < AUTOCORR_RES; i++)
-		if (i < AUTOCORR_RES - MOV_AVG_SIZE)
-			testdata << autocorr_array.values[i] << ", " << testbuffer.values[i] << ", " << testbuffer2.values[i] << ", " << mov_avg.values[i] << "\n";
-		else
-			testdata << autocorr_array.values[i] << ", " << testbuffer.values[i] << ", " << testbuffer2.values[i] << ", 0" << "\n";
-	testdata.close();
-	//*********************************************
-
-	//*******************************
-	//* ENVELOPE FILTER ON AUTOCORR *
-	//*******************************
 	env_filt.init_buffer(AUTOCORR_RES, sample_rate);
+	autocorr_filt.init_buffer(AUTOCORR_RES, sample_rate);
+	build_autocorr_array(wavfile_filt_buffer, autocorr_array, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	moving_average(autocorr_array, autocorr_filt, MOV_AVG_SIZE);
 	envelope_filter(autocorr_array, env_filt, ENV_FILT_REC);
+	bpm_value = extract_bpm_value(env_filt, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	std::cout << "The BPM value is: " << bpm_value << std::endl;
 
 	//*****************
 	//* AUTOCORR PLOT *
@@ -257,9 +190,9 @@ int main()
 	gp4 << "plot '-' with lines\n";
 	std::vector<double> data4;
 	for (long i = 0; i < AUTOCORR_RES; i++)
-		data4.push_back(env_filt.values[i]);
+		data4.push_back(autocorr_filt[i]);
 	gp4.send1d(data4);
 #endif
 
-return 0;
+	return 0;
 }
