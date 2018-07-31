@@ -1,28 +1,30 @@
 #include <iostream>
+#include <fstream>
+#include "buffer.h"
 #include "WAVFile.h"
 #include "AudioRecord.h"
 
 int main()
 {
 	AudioRecord AR(44100, 4);
-	std::cout << "Executing init... " << AR.init() << std::endl;
-	std::cout << "START. " << AR.start() << std::endl;;
-	while (AR.full() == false)
+	std::cout << "START. " << AR.start() << std::endl;
+	while (AR.is_full() == false)
 	{
 		// Wait until samples have been recorded
 	}
 
-	std::cout << "STOP. " << AR.stop() << std::endl;
-
 	short* buf1 = AR.flush(0);
 	short* buf2 = AR.flush(1);
 
-	remove("waveform1.bin");
-	std::ofstream buffer1("waveform1.bin", std::ios_base::out | std::ios_base::binary);
-	for (int i = 0; i < 44100 * 4 * 2; i++)
-		buffer1.write((char*)&buf1[i], sizeof(short));
+	WAVFile wavfile;
+	buffer<short> buffer(4 * 44100, 44100);
+	for (long i = 0; i < 4 * 44100; i++)
+		buffer[i] = buf1[i];
 
-	buffer1.close();
-	
-	return 0;
+	maximize_volume(buffer);
+	wavfile.set_buffer(buffer);
+	remove("./wavs/recordwav.wav");
+	std::ofstream recordwav("./wavs/recordwav.wav", std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+	wavfile.write_wav_file(recordwav);
+	recordwav.close();
 }
