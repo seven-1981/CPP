@@ -15,23 +15,24 @@ class AudioRecord
 public:
 	AudioRecord(long sample_rate, long duration);
 	~AudioRecord();
-	MMRESULT init();
+
 	MMRESULT start();
-	MMRESULT stop();
-	bool full();
+	bool is_full();
+	bool is_full(int index);
 	short* flush(int index);
 
 private:
 	// Recording parameters
 	WAVEFORMATEX wfx;
-
+	// Buffer for data and header
 	short* waveIn[NUM_OF_BUFFERS];
 	WAVEHDR WaveInHdr[NUM_OF_BUFFERS];
+	// Input device
 	HWAVEIN hWaveIn;
-
+	// Result of function calls
 	MMRESULT result;
-
-	static void CALLBACK buffer_callback(HWAVEIN hwi, UINT uMsg, DWORD dwInstance, DWORD dwParam1, DWORD dwParam2);
+	// Called upon instantiation
+	MMRESULT init();
 };
 
 #endif
