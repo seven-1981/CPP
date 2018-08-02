@@ -7,7 +7,7 @@
 #include <Windows.h>
 #include <mmsystem.h>
 
-#define NUM_OF_BUFFERS 2
+#define NUM_OF_BUFFERS 1
 
 
 class AudioRecord
@@ -31,8 +31,9 @@ private:
 	HWAVEIN hWaveIn;
 	// Result of function calls
 	MMRESULT result;
+
 	// Called upon instantiation
-	MMRESULT init();
+	void init();
 };
 
 #endif
