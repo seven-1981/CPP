@@ -26,9 +26,6 @@ AudioRecord::AudioRecord(long sample_rate, long duration)
 		this->WaveInHdr[i].dwLoops = 0L;
 	}
 
-	// Set result to zero
-	this->result = 0;
-
 	// Call initialisation
 	this->init();
 }
@@ -83,27 +80,25 @@ short* AudioRecord::flush(int index)
 	return this->waveIn[index];
 }
 
-MMRESULT AudioRecord::init()
+void AudioRecord::init()
 {
 	// Open waveform input recording device - fills hWaveIn
 	this->result = waveInOpen(&this->hWaveIn, WAVE_MAPPER, &this->wfx, NULL, NULL, CALLBACK_NULL | WAVE_FORMAT_DIRECT);
 	if (this->result != 0)
-		return this->result;
+		return;
 
 	for (int i = 0; i < NUM_OF_BUFFERS; i++)
 	{
 		// Prepare the headers
 		this->result = waveInPrepareHeader(this->hWaveIn, &this->WaveInHdr[i], sizeof(this->WaveInHdr[i]));
 		if (this->result != 0)
-			return this->result;
+			return;
 
 		// Insert the wave input buffers
 		this->result = waveInAddBuffer(this->hWaveIn, &this->WaveInHdr[i], sizeof(this->WaveInHdr[i]));
 		if (this->result != 0)
-			return this->result;
+			return;
 	}
 
 	std::cout << "Initialization done." << std::endl;
-
-	return this->result;
 }
