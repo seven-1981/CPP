@@ -4,9 +4,12 @@
 #include "WAVFile.h"
 #include "AudioRecord.h"
 
+long sample_rate = 44100;
+long duration = 5;
+
 int main()
 {
-	AudioRecord AR(44100, 4);
+	AudioRecord AR(sample_rate, duration);
 	std::cout << "START. " << AR.start() << std::endl;
 	while (AR.is_full() == false)
 	{
@@ -17,14 +20,13 @@ int main()
 	short* buf2 = AR.flush(1);
 
 	WAVFile wavfile;
-	buffer<short> buffer(4 * 44100, 44100);
-	for (long i = 0; i < 4 * 44100; i++)
+	buffer<short> buffer(sample_rate * duration, sample_rate);
+	for (long i = 0; i < sample_rate * duration; i++)
 		buffer[i] = buf1[i];
 
-	maximize_volume(buffer);
 	wavfile.set_buffer(buffer);
-	remove("./wavs/recordwav.wav");
-	std::ofstream recordwav("./wavs/recordwav.wav", std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+	remove("recordwav.wav");
+	std::ofstream recordwav("recordwav.wav", std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
 	wavfile.write_wav_file(recordwav);
 	recordwav.close();
 }
