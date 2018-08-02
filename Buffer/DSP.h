@@ -498,7 +498,8 @@ void moving_average(const buffer<T>& inbuffer, buffer<double>& outbuffer, long N
 	}
 }
 
-void build_autocorr_array(const buffer<short>& inbuffer, buffer<double>& autocorr_array, double bpm_min, double bpm_max)
+template <typename T>
+void build_autocorr_array(const buffer<T>& inbuffer, buffer<double>& autocorr_array, double bpm_min, double bpm_max)
 {
 	//Get buffer size
 	long size = autocorr_array.get_size();
