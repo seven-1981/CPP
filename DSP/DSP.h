@@ -6,6 +6,10 @@
 #include <cmath>
 #include <functional>
 
+// Prevents compiler error due to multiple definition of min/max
+#undef min
+#undef max
+
 double tempval;	//Used for SWAP macro
 
 #define SWAP(a, b) tempval=(a); (a) = (b); (b) = tempval
@@ -265,7 +269,7 @@ double get_rms_value(const buffer<T>& inbuffer)
 	long size = inbuffer.get_size();
 
 	//RMS value
-	double rms_value;
+	double rms_value = 0.0;
 
 	for (long i = 0; i < size; i++)
 		rms_value += ((double)inbuffer[i] * (double)inbuffer[i]) / size;
