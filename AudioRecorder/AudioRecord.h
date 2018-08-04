@@ -7,7 +7,7 @@
 #include <Windows.h>
 #include <mmsystem.h>
 
-#define NUM_OF_BUFFERS 1
+#define NUM_OF_BUFFERS 10
 
 
 class AudioRecord
