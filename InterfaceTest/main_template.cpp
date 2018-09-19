@@ -58,15 +58,8 @@ struct Event : public IOperation<RET, PAR>
 	{
 		Data<PAR>* pData = dynamic_cast<Data<PAR>*>(_pData);
 		std::cout << "Executing Base EventInt." << std::endl;
-		return IOperation<RET,PAR>::Fptr(pData);
+		return dynamic_cast<Data<RET>*>(IOperation<RET,PAR>::Fptr(pData));
 	}
-
-	/*Intdata* Execute(Intdata* _pData)
-	{
-		IData* pData = dynamic_cast<IData*>(_pData);
-		std::cout << "Executing Derived EventInt." << std::endl;
-		return dynamic_cast<Intdata*>(Execute(pData));
-	}*/
 };
 
 Data<int>* intfunc(Data<int>* _x)
@@ -81,6 +74,12 @@ Data<double>* doublefunc(Data<double>* _x)
 	return _x;
 }
 
+Data<const char*>* ccharfunc(Data<const char*>* _x)
+{
+	std::cout << "We can't change const char..." << std::endl;
+	return _x;
+}
+
 int main()
 {
 	std::cout << "Start Interface Test..." << std::endl;
@@ -92,6 +91,7 @@ int main()
 	pr = dynamic_cast<Data<int>*>(x.Execute(pa));
 	std::cout << "Result: " << pr->x << std::endl;
 
+	//If IData (base class) is used for data, the dynamic_cast isn't necessary
 	IData* pi = new Data<double>(77);
 	IData* pj = new Data<double>(0);
 	FPDATA<double, double>::fptype fp2 = doublefunc;
@@ -99,6 +99,14 @@ int main()
 	pj = y.Execute(pi);
 	std::cout << "Result: " << dynamic_cast<Data<double>*>(pj)->x << std::endl;
 	
+	const char* a = "test";
+	IData* pc = new Data<const char*>(a);
+	IData* pq = new Data<const char*>(a);
+	FPDATA<const char*, const char*>::fptype fp3 = ccharfunc;
+	Event<const char*, const char*> z(fp3);
+	pq = z.Execute(pc);
+	std::cout << "Result: " << dynamic_cast<Data<const char*>*>(pq)->x << std::endl;
+
 	std::cout << "End Interface Test." << std::endl;
 	
 	getchar();
