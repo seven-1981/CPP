@@ -5,10 +5,7 @@
 #include <limits>
 #include <cmath>
 #include <functional>
-
-// Prevents compiler error due to multiple definition of min/max
-#undef min
-#undef max
+#include <vector>
 
 double tempval;	//Used for SWAP macro
 
@@ -57,7 +54,7 @@ long get_max_index(const buffer<T>& buffer)
 	T max_value = std::numeric_limits<T>::min();
 
 	//Declare return value
-	long index;
+	long index = 0;
 
 	//Get max value index
 	for (long i = 0; i < size; i++)
@@ -70,6 +67,116 @@ long get_max_index(const buffer<T>& buffer)
 	}
 
 	return index;
+}
+
+template <typename T>
+void get_peaks(buffer<T>& buffer, std::vector<long>& result, unsigned int width, unsigned int accuracy, double threshold)
+{
+	//Get size of input buffer
+	long size = buffer.get_size();
+
+	std::vector<T> temp_res;
+	std::vector<T> temp_res2;
+	std::vector<T> loc_max;
+	std::vector<T> loc_max2;
+
+	//Ensure width divides size of buffer
+	if (size % width != 0)
+		return;
+
+	//Divide buffer into size / width parts
+	unsigned int N = size / width;
+
+	T global_max = std::numeric_limits<T>::min();
+
+	//Scan through the values and fill all peaks into the vector
+	for (unsigned int i = 0; i < N; i++)
+	{
+		T local_max = std::numeric_limits<T>::min();
+		long max_index = 0;
+
+		//Get range for this step i
+		long start_index = (long)(i * width);
+		long end_index = (long)(i * width + width);
+
+		//Scan through sub range and find local maxima
+		for (long j = start_index; j < end_index; j++)
+		{
+			if (buffer[j] > local_max)
+			{
+				local_max = buffer[j];
+				max_index = j;
+			}
+		}
+
+		//Fill temporary vectors with found values
+		temp_res.push_back(max_index);
+		loc_max.push_back(local_max);
+
+		//Determine global max
+		if (local_max > global_max)
+			global_max = local_max;
+	}
+
+	//for (int i = 0; i < temp_res.size(); i++)
+	//{
+	//	std::cout << "Local Max: " << i << " - value " << loc_max.at(i) << " at pos " << temp_res.at(i) << std::endl;
+	//}
+
+	//std::cout << "..." << std::endl;
+
+	//Check if two peaks are close together
+	for (int i = 0; i < temp_res.size() - 1; i++)
+	{
+		if (temp_res.at(i + 1) - temp_res.at(i) >= accuracy)
+		{
+			//Peaks are apart
+			temp_res2.push_back(temp_res.at(i));	
+			loc_max2.push_back(loc_max.at(i));
+
+			//Check if last cycle, if yes, we have to add last value
+			if (i >= temp_res.size() - 2)
+			{
+				temp_res2.push_back(temp_res.at(i + 1));
+				loc_max2.push_back(loc_max.at(i + 1));
+			}
+		}
+		else
+		{
+			//Two peaks found close together, only take higher value
+			if (loc_max.at(i) > loc_max.at(i + 1))
+			{
+				temp_res2.push_back(temp_res.at(i));
+				loc_max2.push_back(loc_max.at(i));
+			}
+			else
+			{
+				temp_res2.push_back(temp_res.at(i + 1));
+				loc_max2.push_back(loc_max.at(i + 1));
+			}
+			//Increase index to skip next value
+			i++;
+		}	
+	}
+
+	//for (int i = 0; i < temp_res2.size(); i++)
+	//{
+	//	std::cout << "Local Max: " << i << " - value " << loc_max2.at(i) << " at pos " << temp_res2.at(i) << std::endl << std::flush;
+	//}
+
+	//std::cout << ".." << std::endl;
+
+	//If peak values are below threshold, we do not count them
+	for (int i = 0; i < temp_res2.size(); i++)
+	{
+		if (loc_max2.at(i) / (double)global_max >= threshold)
+			result.push_back(temp_res2.at(i));
+	}
+
+	for (int i = 0; i < result.size(); i++)
+	{
+		std::cout << "Local Max: " << i << " - value " << loc_max2.at(i) << " at pos " << result.at(i) << std::endl << std::flush;
+	}
 }
 
 template <typename T>
@@ -86,10 +193,10 @@ void maximize_volume(buffer<T>& buffer)
 	double factor;
 
 	//Check which one is bigger
-	if (max >= abs(min))
+	if (max >= fabs(min))
 		factor = (double)std::numeric_limits<T>::max() / max;
 	else
-		factor = abs(((double)std::numeric_limits<T>::min()) / min);
+		factor = fabs(((double)std::numeric_limits<T>::min()) / min);
 
 	//Maximize the buffer
 	for (long i = 0; i < size; i++)
@@ -139,8 +246,6 @@ double get_variance_value(const buffer<T>& buffer)
 	//Variance return value
 	double var = 0.0;
 
-	//Get average value
-	double avg = get_mean_value(buffer);
 	double sq = 0.0, av = 0.0;
 
 	//Go through values and calculate variance
@@ -195,8 +300,22 @@ void shortify(const buffer<double>& dbuffer, buffer<short>& sbuffer)
 	//Get buffer size
 	long size = dbuffer.get_size();
 
+	//Get max/min value and scale factors
+	double max = get_max_sample_value(dbuffer);
+	double min = get_min_sample_value(dbuffer);
+
+	//Declare maximization factor
+	double factor;
+
+	//Check which one is bigger
+	if (max >= fabs(min))
+		factor = (double)std::numeric_limits<short>::max() / max;
+	else
+		factor = fabs(((double)std::numeric_limits<short>::min()) / min);
+
+	//Scale to short max
 	for (long i = 0; i < size; i++)
-		sbuffer[i] = (short)dbuffer[i];
+		sbuffer[i] = (short)(dbuffer[i] * factor);
 }
 
 template <typename T>
@@ -226,7 +345,7 @@ void rectify(buffer<T>& buffer)
 	long size = buffer.get_size();
 
 	for (long i = 0; i < size; i++)
-		buffer[i] = abs(buffer[i]);
+		buffer[i] = fabs(buffer[i]);
 }
 
 template <typename T>
@@ -241,7 +360,7 @@ double get_autocorr(double lag, const buffer<T>& buffer)
 	//Calculate time axis - lag is in seconds
 	double time_max = (double)size / sample_rate;
 
-	//Calculate number of samples corresponding to desired lag - division /2 due to left-right
+	//Calculate number of samples corresponding to desired lag
 	long lag_samples = (long)ceil((lag / time_max) * size);
 
 	//Calculate average
@@ -262,6 +381,28 @@ double get_autocorr(double lag, const buffer<T>& buffer)
 	return autocorr;
 }
 
+//Faster implementation of "get_autocorr" - used in for loop of "build_autocorr_array"
+template <typename T>
+double get_autocorr(double lag, const buffer<T>& buffer, long size, long sample_rate, double average, double variance)
+{
+	//Calculate time axis - lag is in seconds
+	double time_max = (double)size / sample_rate;
+
+	//Calculate number of samples corresponding to desired lag
+	long lag_samples = (long)ceil((lag / time_max) * size);
+
+	//Calculate autocorrelation
+	double autocorr = 0.0;
+	for (long i = 0; i < size - lag_samples; i++)
+		autocorr += (((double)buffer[i] - average) * ((double)buffer[i + lag_samples] - average));
+
+	autocorr = autocorr / (size - lag_samples);
+	autocorr = autocorr / variance;
+	autocorr *= autocorr;
+
+	return autocorr;
+}
+
 template <typename T>
 double get_rms_value(const buffer<T>& inbuffer)
 {
@@ -269,7 +410,7 @@ double get_rms_value(const buffer<T>& inbuffer)
 	long size = inbuffer.get_size();
 
 	//RMS value
-	double rms_value = 0.0;
+	double rms_value;
 
 	for (long i = 0; i < size; i++)
 		rms_value += ((double)inbuffer[i] * (double)inbuffer[i]) / size;
@@ -278,13 +419,14 @@ double get_rms_value(const buffer<T>& inbuffer)
 }
 
 template <typename T>
-void downsample_buffer(const buffer<T>& inbuffer, buffer<T>& outbuffer)
+void downsample_buffer(const buffer<T>& inbuffer, buffer<T>& outbuffer, int N)
 {
 	//Get buffer size
 	long size = outbuffer.get_size();
 
-	for (long i = 0; i < size * 2; i += 2)
-		outbuffer[i / 2] = (T)(((double)inbuffer[i] + (double)inbuffer[i + 1]) / 2.0);
+	for (long i = 0; i < size * N; i += N)
+		//outbuffer[i / 2] = (T)(((double)inbuffer[i] + (double)inbuffer[i + 1]) / 2.0);
+		outbuffer[i / N] = (T)((double)inbuffer[i]);
 }
 
 template <typename T>
@@ -299,7 +441,7 @@ void envelope_filter(const buffer<T>& inbuffer, buffer<double>& outbuffer, doubl
 
 	for (long i = 0; i < size; i++)
 	{
-		env_in = (T)abs(inbuffer[i]);
+		env_in = (T)fabs(inbuffer[i]);
 		if (env_in > peak_env)
 			peak_env = env_in;
 		else
@@ -505,18 +647,27 @@ void moving_average(const buffer<T>& inbuffer, buffer<double>& outbuffer, long N
 template <typename T>
 void build_autocorr_array(const buffer<T>& inbuffer, buffer<double>& autocorr_array, double bpm_min, double bpm_max)
 {
-	//Get buffer size
-	long size = autocorr_array.get_size();
+	//Get buffer sizes
+	long size_autocorr = autocorr_array.get_size();
+	long size_inbuffer = inbuffer.get_size();
+
+	//Get sample rate
+	long sample_rate = inbuffer.get_sample_rate();
+
+	//Get mean value and variance
+	double average = get_mean_value(inbuffer);
+	double variance = get_variance_value(inbuffer);
 
 	//Calculate lag values -> beats/minute to seconds/beat
 	double min_lag = (double)60 / bpm_max;
 	double max_lag = (double)60 / bpm_min;
 	double lag;
 
-	for (long i = 0; i < size; i++)
+	for (long i = 0; i < size_autocorr; i++)
 	{
-		lag = min_lag + (max_lag - min_lag) / (double)size * (double)i;
-		autocorr_array[i] = get_autocorr(lag, inbuffer);
+		lag = min_lag + (max_lag - min_lag) / (double)size_autocorr * (double)i;
+		//Uses faster implementation of "get_autocorr"
+		autocorr_array[i] = get_autocorr(lag, inbuffer, size_inbuffer, sample_rate, average, variance);
 	}
 }
 
