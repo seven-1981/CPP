@@ -1,6 +1,11 @@
 #ifndef _BUFFER_H
 #define _BUFFER_H
 
+#include <cstdlib>
+#include <cassert>
+#include <string>
+#include <fstream>
+
 template <typename T>
 class buffer
 {
@@ -41,22 +46,19 @@ public:
 
 	const T& operator[](long index) const
 	{
-		if (this->initialized == true && index < this->size)
-			return this->values[index];
-		else
-			return this->cnull;
+		assert(this->initialized == true && index < this->size);
+		return this->values[index];
 	}
 
 	T& operator[](long index)
 	{
-		if (this->initialized == true && index < this->size)
-			return this->values[index];
-		else
-			return this->null;
+		assert(this->initialized == true && index < this->size);
+		return this->values[index];
 	}
 
 	long get_size() const { return this->size; }
 	long get_sample_rate() const { return this->sample_rate; }
+	bool is_initialized() const { return this->initialized; }
 
 	void init_buffer(long size, long sample_rate)
 	{
@@ -69,14 +71,20 @@ public:
 		}
 	}
 
+	void print(std::string filename)
+	{
+		std::ofstream file(filename, std::ios_base::out);
+		for (long i = 0; i < this->size; i++)
+			file << i << "; " << this->values[i] << "\n";
+		file.close();
+	}
+
 private:
-	T * values;
+	T* values;
 	long size;
 	long sample_rate;
 
 	bool initialized;
-	T null = 0;
-	const T cnull = 0;
 };
 
 #endif
