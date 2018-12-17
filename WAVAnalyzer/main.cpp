@@ -5,7 +5,9 @@
 
 #include "..\..\WAVAnalyzer\WAVAnalyzer\WAVFile.h"
 #include "..\..\WAVAnalyzer\WAVAnalyzer\DSP.h"
+#include "..\..\WAVAnalyzer\WAVAnalyzer\PEAKS.h"
 #include "..\..\WAVAnalyzer\WAVAnalyzer\Biquad.h"
+#include "..\..\WAVAnalyzer\WAVAnalyzer\BiquadCascade.h"
 
 //Uses boost library. In Project options set include path to c:\program files\boost
 //and library path to C:\Program Files\Boost\stage\lib
@@ -32,6 +34,16 @@
 //#define PLOT_WAVFILE_BIQUAD
 #define PLOT_BIQUAD_AUTOCORR
 
+template <typename T>
+void plot(const buffer<T>& inbuffer, Gnuplot& gp)
+{
+	gp << "plot '-' with lines\n";
+	std::vector<double> data;
+	long size = inbuffer.get_size();
+	for (long i = 0; i < size; i++)
+		data.push_back(inbuffer[i]);
+	gp.send1d(data);
+}
 
 int main()
 {
@@ -81,19 +93,14 @@ int main()
 	//* APPLY WINDOW TO WAV DATA (TIME DOMAIN) *
 	//******************************************
 	wavfile_buffer.init_buffer(wavfile.get_size(), sample_rate);
-	apply_window(*wavfile.get_buffer(), wavfile_buffer, tukey, 0.5);
+	DSP::apply_window(*wavfile.get_buffer(), wavfile_buffer, DSP::tukey, 0.5);
 
 	//*************************
 	//* PLOT WINDOWED WAVFILE *
 	//*************************
 #ifdef PLOT_WAVFILE
 	Gnuplot gp1("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
-	gp1 << "plot '-' with lines\n";
-	std::vector<double> data1;
-	long size1 = wavfile_buffer.get_size();
-	for (long i = 0; i < size1; i++)
-		data1.push_back(wavfile_buffer[i]);
-	gp1.send1d(data1);
+	plot(wavfile_buffer, gp1);
 #else
 	remove("windata.txt");
 	std::ofstream windowdata("windata.txt", std::ios_base::out | std::ios_base::trunc);
@@ -105,13 +112,13 @@ int main()
 	//*************************
 	//* APPLY FFT TO WAV DATA *
 	//*************************
-	pow2samples = pow2_size(wavfile_buffer, true); // true for floor, false for ceil
+	pow2samples = DSP::pow2_size(wavfile_buffer, true); // true for floor, false for ceil
 	std::cout << "Pow 2 size: " << pow2samples << "." << std::endl;
 	time_domain.init_buffer(pow2samples, sample_rate);
 	freq_domain.init_buffer(pow2samples * 2, sample_rate);
-	create_fft_buffer(*wavfile.get_buffer(), time_domain);
+	DSP::create_fft_buffer(*wavfile.get_buffer(), time_domain);
 	//create_fft_buffer(wavfile_buffer, time_domain); //<- uses windowed data
-	perform_fft(time_domain, freq_domain, +1);
+	DSP::perform_fft(time_domain, freq_domain, +1);
 	freqres = (double)sample_rate / pow2samples;
 	std::cout << "The freq. resolution: " << freqres << std::endl;
 
@@ -137,13 +144,13 @@ int main()
 	//* REMOVE FREQ FROM FFT DATA *
 	//*****************************
 	freq_filt.init_buffer(pow2samples, sample_rate);
-	cut_freq(freq_domain, freq_filt, LO_FREQ, HI_FREQ);
+	DSP::cut_freq(freq_domain, freq_filt, LO_FREQ, HI_FREQ);
 
 	//***********************
 	//* PERFORM INVERSE FFT *
 	//***********************
 	time_filt.init_buffer(pow2samples * 2, sample_rate);
-	perform_fft(freq_filt, time_filt, -1);
+	DSP::perform_fft(freq_filt, time_filt, -1);
 
 #ifdef PLOT_INV_FFT
 	Gnuplot gp3("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
@@ -164,7 +171,7 @@ int main()
 	//*********************************
 	//* MAXIMIZE VOLUME/LEVEL OF DATA *
 	//*********************************
-	maximize_volume(wavfile_filt_buffer);
+	DSP::maximize_volume(wavfile_filt_buffer);
 
 	//***************************
 	//* WRITE FILTERED WAV FILE *
@@ -181,10 +188,10 @@ int main()
 	autocorr_array.init_buffer(AUTOCORR_RES, sample_rate);
 	env_filt.init_buffer(AUTOCORR_RES, sample_rate);
 	autocorr_filt.init_buffer(AUTOCORR_RES, sample_rate);
-	build_autocorr_array(time_filt, autocorr_array, BPM_MIN_VALUE, BPM_MAX_VALUE);
-	moving_average(autocorr_array, autocorr_filt, MOV_AVG_SIZE);
-	envelope_filter(autocorr_array, env_filt, ENV_FILT_REC);
-	bpm_value = extract_bpm_value(env_filt, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	DSP::build_autocorr_array(time_filt, autocorr_array, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	DSP::moving_average(autocorr_array, autocorr_filt, MOV_AVG_SIZE);
+	DSP::envelope_filter(autocorr_array, env_filt, ENV_FILT_REC);
+	bpm_value = DSP::extract_bpm_value(env_filt, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	std::cout << "The BPM value is: " << bpm_value << std::endl;
 
 	//*****************
@@ -192,11 +199,7 @@ int main()
 	//*****************
 #ifdef PLOT_AUTOCORR
 	Gnuplot gp4("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
-	gp4 << "plot '-' with lines\n";
-	std::vector<double> data4;
-	for (long i = 0; i < AUTOCORR_RES; i++)
-		data4.push_back(autocorr_filt[i]);
-	gp4.send1d(data4);
+	plot(autocorr_filt, gp4);
 #endif
 
 	//****************
@@ -215,73 +218,64 @@ int main()
 	long srate = sample_rate / 4;
 	time_downsample1.init_buffer(samples * 2, srate * 2);
 	time_downsample2.init_buffer(samples, srate);
-	downsample_buffer(time_domain, time_downsample2, 4);
+	DSP::downsample_buffer(time_domain, time_downsample2, 4);
 
 	freq_downsample.init_buffer(samples * 2, srate);
-	perform_fft(time_downsample2, freq_downsample, +1);
+	DSP::perform_fft(time_downsample2, freq_downsample, +1);
 
 	freq_downsample_filt.init_buffer(samples, srate);
 	time_downsample_filt.init_buffer(samples * 2, srate);
-	cut_freq(freq_downsample, freq_downsample_filt, 20.0, 250.0);
-	perform_fft(freq_downsample_filt, time_downsample_filt, -1);
+	DSP::cut_freq(freq_downsample, freq_downsample_filt, 20.0, 250.0);
+	DSP::perform_fft(freq_downsample_filt, time_downsample_filt, -1);
 
 	long autosize = AUTOCORR_RES;
 	autocorr_ds.init_buffer(autosize, srate);
-	build_autocorr_array(time_downsample_filt, autocorr_ds, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	DSP::build_autocorr_array(time_downsample_filt, autocorr_ds, BPM_MIN_VALUE, BPM_MAX_VALUE);
 
 	env_downsample.init_buffer(autosize, srate);
-	envelope_filter(autocorr_ds, env_downsample, ENV_FILT_REC);
-	bpm_value = extract_bpm_value(env_downsample, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	DSP::envelope_filter(autocorr_ds, env_downsample, ENV_FILT_REC);
+	bpm_value = DSP::extract_bpm_value(env_downsample, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	std::cout << "The BPM downsampled value is: " << bpm_value << std::endl;
 
 	//*************************
 	//* WAVFILE BIQUAD FILTER *
 	//*************************
 	buffer<double> biquad_buffer_L;
+	buffer<double> biquad_buffer_M;
 	buffer<double> biquad_buffer_H;
 	buffer<short> biquad_wavbuffer_L;
+	buffer<short> biquad_wavbuffer_M;
 	buffer<short> biquad_wavbuffer_H;
-	buffer<double> biquad_autocorr;
+	buffer<double> biquad_autocorr_L;
+	buffer<double> biquad_autocorr_M;
+	buffer<double> biquad_autocorr_H;
 	buffer<double> biquad_env;
 	
-	//Initialize four Biquad filters - for cascading
-	Biquad* pLPFilter = new Biquad();
-	Biquad* pLPFilter2 = new Biquad();
-	Biquad* pLPFilter3 = new Biquad();
-	Biquad* pLPFilter4 = new Biquad();
-	Biquad* pHPFilter = new Biquad();
-	Biquad* pHPFilter2 = new Biquad();
-	Biquad* pHPFilter3 = new Biquad();
-	Biquad* pHPFilter4 = new Biquad();
-
-	//Low frequency band
-	pLPFilter->setBiquad(BiquadType_Bandpass, 80.0 / srate, 0.7, 0.0);
-	pLPFilter2->setBiquad(BiquadType_Bandpass, 80.0 / srate, 0.7, 0.0);
-	pLPFilter3->setBiquad(BiquadType_Bandpass, 80.0 / srate, 0.7, 0.0);
-	pLPFilter4->setBiquad(BiquadType_Bandpass, 80.0 / srate, 0.7, 0.0);
-
-	//High frequency band
-	pHPFilter->setBiquad(BiquadType_Bandpass, 4000.0 / srate, 0.7, 0.0);
-	pHPFilter2->setBiquad(BiquadType_Bandpass, 4000.0 / srate, 0.7, 0.0);
-	pHPFilter3->setBiquad(BiquadType_Bandpass, 4000.0 / srate, 0.7, 0.0);
-	pHPFilter4->setBiquad(BiquadType_Bandpass, 4000.0 / srate, 0.7, 0.0);
+	//Initialize Biquad Cascades
+	BiquadCascade* pCascadeLow = new BiquadCascade(BiquadType_Bandpass, 12, 20.0 / srate, 80.0 / srate);
+	BiquadCascade* pCascadeMid = new BiquadCascade(BiquadType_Bandpass, 12, 80.0 / srate, 140.0 / srate);
+	BiquadCascade* pCascadeHigh = new BiquadCascade(BiquadType_Bandpass, 12, 140.0 / srate, 200.0 / srate);
 
 	//Initialize the Biquad buffers
 	biquad_buffer_L.init_buffer(wavfile.get_size(), sample_rate);
+	biquad_buffer_M.init_buffer(wavfile.get_size(), sample_rate);
 	biquad_buffer_H.init_buffer(wavfile.get_size(), sample_rate);
 	biquad_wavbuffer_L.init_buffer(wavfile.get_size(), sample_rate);
+	biquad_wavbuffer_M.init_buffer(wavfile.get_size(), sample_rate);
 	biquad_wavbuffer_H.init_buffer(wavfile.get_size(), sample_rate);
 
 	//Copy data from wavfile buffer and process through filters
 	for (long i = 0; i < biquad_buffer_L.get_size(); i++)
 	{
-		biquad_buffer_L[i] = pLPFilter4->process(pLPFilter3->process(pLPFilter2->process(pLPFilter->process((*wavfile.get_buffer())[i]))));
-		biquad_buffer_H[i] = pHPFilter4->process(pHPFilter3->process(pHPFilter2->process(pHPFilter->process((*wavfile.get_buffer())[i]))));
+		biquad_buffer_L[i] = pCascadeLow->process((*wavfile.get_buffer())[i]);
+		biquad_buffer_M[i] = pCascadeMid->process((*wavfile.get_buffer())[i]);
+		biquad_buffer_H[i] = pCascadeHigh->process((*wavfile.get_buffer())[i]);
 	}
 
 	//Shortify - this also scales to short max
-	shortify(biquad_buffer_L, biquad_wavbuffer_L);
-	shortify(biquad_buffer_H, biquad_wavbuffer_H);
+	DSP::shortify(biquad_buffer_L, biquad_wavbuffer_L);
+	DSP::shortify(biquad_buffer_M, biquad_wavbuffer_M);
+	DSP::shortify(biquad_buffer_H, biquad_wavbuffer_H);
 
 	//**********************************
 	//* WRITE BIQUAD FILTERED WAV FILE *
@@ -292,6 +286,12 @@ int main()
 	wavfile_biquad.write_wav_file(biquadwav_L);
 	biquadwav_L.close();
 
+	wavfile_biquad.set_buffer(biquad_wavbuffer_M);
+	remove("./wavs/biquad_M.wav");
+	std::ofstream biquadwav_M("./wavs/biquad_M.wav", std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+	wavfile_biquad.write_wav_file(biquadwav_M);
+	biquadwav_M.close();
+
 	wavfile_biquad.set_buffer(biquad_wavbuffer_H);
 	remove("./wavs/biquad_H.wav");
 	std::ofstream biquadwav_H("./wavs/biquad_H.wav", std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
@@ -300,73 +300,77 @@ int main()
 
 #ifdef PLOT_WAVFILE_BIQUAD
 	Gnuplot gp5("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
-	gp5 << "plot '-' with lines\n";
-	std::vector<double> data5;
-	long size5 = biquad_wavbuffer.get_size();
-	for (long i = 0; i < size5; i++)
-		data5.push_back(biquad_wavbuffer[i]);
-	gp5.send1d(data5);
+	plot(biquad_wavbuffer, gp5);
 #endif
 
 	//*********************************
 	//* BIQUAD FILTER BPM CALCULATION *
 	//*********************************
-	biquad_autocorr.init_buffer(AUTOCORR_RES, sample_rate);
+	biquad_autocorr_L.init_buffer(AUTOCORR_RES, sample_rate);
+	biquad_autocorr_M.init_buffer(AUTOCORR_RES, sample_rate);
+	biquad_autocorr_H.init_buffer(AUTOCORR_RES, sample_rate);
 	biquad_env.init_buffer(wavfile.get_size(), sample_rate);
-	//biquad_env.init_buffer(AUTOCORR_RES, sample_rate);
 
 
 	//LOW PASSBAND
-
-	envelope_filter(biquad_buffer_L, biquad_env, ENV_FILT_REC);
-	build_autocorr_array(biquad_env, biquad_autocorr, BPM_MIN_VALUE, BPM_MAX_VALUE);
-	//build_autocorr_array(biquad_buffer, biquad_autocorr, BPM_MIN_VALUE, BPM_MAX_VALUE);
-	//envelope_filter(biquad_autocorr, biquad_env, ENV_FILT_REC);
-
-	std::vector<long> v;
-	get_peaks(biquad_autocorr, v, 500, 500, 0.3);
-
-	double bpm_value_biquad = extract_bpm_value(biquad_autocorr, BPM_MIN_VALUE, BPM_MAX_VALUE);
-	//double bpm_value_biquad = extract_bpm_value(biquad_env, BPM_MIN_VALUE, BPM_MAX_VALUE);
-
-	std::cout << "The BPM biquad value is: " << bpm_value_biquad << std::endl;
+	DSP::envelope_filter(biquad_buffer_L, biquad_env, ENV_FILT_REC);
+	DSP::build_autocorr_array(biquad_env, biquad_autocorr_L, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	double bpm_value_biquad = DSP::extract_bpm_value(biquad_autocorr_L, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	std::cout << "LOW PASSBAND: The BPM biquad value is: " << bpm_value_biquad << std::endl;
 
 #ifdef PLOT_BIQUAD_AUTOCORR
 	Gnuplot gp6("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
-	gp6 << "plot '-' with lines\n";
-	std::vector<double> data6;
-	long size6 = biquad_autocorr.get_size();
-	for (long i = 0; i < size6; i++)
-		data6.push_back(biquad_autocorr[i]);
-	gp6.send1d(data6);
+	plot(biquad_autocorr_L, gp6);
 #endif
 
-	//HIGH PASSBAND
-
-	envelope_filter(biquad_buffer_H, biquad_env, ENV_FILT_REC);
-	build_autocorr_array(biquad_env, biquad_autocorr, BPM_MIN_VALUE, BPM_MAX_VALUE);
-
-
-	std::vector<long> v2;
-	get_peaks(biquad_autocorr, v2, 500, 500, 0.3);
-
-	 bpm_value_biquad = extract_bpm_value(biquad_autocorr, BPM_MIN_VALUE, BPM_MAX_VALUE);
-
-	std::cout << "The BPM biquad value is: " << bpm_value_biquad << std::endl;
+	//MID PASSBAND
+	DSP::envelope_filter(biquad_buffer_M, biquad_env, ENV_FILT_REC);
+	DSP::build_autocorr_array(biquad_env, biquad_autocorr_M, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	bpm_value_biquad = DSP::extract_bpm_value(biquad_autocorr_M, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	std::cout << "MID PASSBAND: The BPM biquad value is: " << bpm_value_biquad << std::endl;
 
 #ifdef PLOT_BIQUAD_AUTOCORR
 	Gnuplot gp7("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
-	gp7 << "plot '-' with lines\n";
-	std::vector<double> data7;
-	long size7 = biquad_autocorr.get_size();
-	for (long i = 0; i < size7; i++)
-		data7.push_back(biquad_autocorr[i]);
-	gp7.send1d(data7);
+	plot(biquad_autocorr_M, gp7);
 #endif
 
-	delete pLPFilter;
-	delete pLPFilter2;
-	delete pLPFilter3;
-	delete pLPFilter4;
+	//HIGH PASSBAND
+	DSP::envelope_filter(biquad_buffer_H, biquad_env, ENV_FILT_REC);
+	DSP::build_autocorr_array(biquad_env, biquad_autocorr_H, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	bpm_value_biquad = DSP::extract_bpm_value(biquad_autocorr_H, BPM_MIN_VALUE, BPM_MAX_VALUE);
+	std::cout << "HIGH PASSBAND: The BPM biquad value is: " << bpm_value_biquad << std::endl;
+
+#ifdef PLOT_BIQUAD_AUTOCORR
+	Gnuplot gp8("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
+	plot(biquad_autocorr_H, gp8);
+#endif
+	
+	std::vector<buffer<double>*> buffers;
+	buffers.push_back(&biquad_autocorr_L);
+	buffers.push_back(&biquad_autocorr_M);
+	buffers.push_back(&biquad_autocorr_H);
+	std::vector<double> widths; widths.push_back(500.0); widths.push_back(500.0); widths.push_back(300.0);
+	std::vector<double> thres; thres.push_back(0.3); thres.push_back(0.3); thres.push_back(0.3);
+	std::cout << "ADVANCED ALGO: The BPM value is: " << PEAKS::extract_bpm_value(buffers, BPM_MIN_VALUE, BPM_MAX_VALUE, widths, thres) << std::endl;
+
+#ifdef PLOT_BIQUAD_AUTOCORR
+	Gnuplot gp9("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
+	plot(biquad_autocorr_L, gp9);
+#endif
+
+#ifdef PLOT_BIQUAD_AUTOCORR
+	Gnuplot gp10("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
+	plot(biquad_autocorr_M, gp10);
+#endif
+
+#ifdef PLOT_BIQUAD_AUTOCORR
+	Gnuplot gp11("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
+	plot(biquad_autocorr_H, gp11);
+#endif
+
+	delete pCascadeLow;
+	delete pCascadeMid;
+	delete pCascadeHigh;
+
 	return 0;
 }
