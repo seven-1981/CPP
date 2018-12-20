@@ -5,6 +5,7 @@
 #include "DSP.h"
 #include <vector>
 #include <iostream>
+#include <functional>
 
 namespace PEAKS
 {
@@ -22,6 +23,29 @@ namespace PEAKS
 		{
 			return ((this->i == rhs.i) && (this->j) == rhs.j);
 		};
+	};
+
+	struct params
+	{
+		double bpm_min;
+		double bpm_max;
+		std::vector<double> widths;
+		std::vector<double> thresholds;
+		std::function<double(double, double)> weight;
+		unsigned int adjacence;
+		explicit params(double bpm_min, double bpm_max,
+						std::vector<double>& widths, 
+						std::vector<double>& thresholds, 
+						std::function<double(double, double)>&& weight, 
+						unsigned int adjacence)
+		{
+			this->bpm_min = bpm_min;
+			this->bpm_max = bpm_max;
+			this->widths = widths;
+			this->thresholds = thresholds;
+			this->weight = weight;
+			this->adjacence = adjacence;
+		}
 	};
 
 	//Assume having a vector of indices with peaks already found -> vec
@@ -171,11 +195,11 @@ namespace PEAKS
 			std::cout << i << ": " << v.at(i) << std::endl;
 	}
 
-//For debug purposes, disable optimization
-//#pragma optimize("", off)  
+	//For debug purposes, disable optimization
+	//#pragma optimize("", off)  
 
 	//Advanced 'PEAK' bpm extraction function
-	double extract_bpm_value(std::vector<buffer<double>*>& autocorr_arrays, double bpm_min, double bpm_max, std::vector<double>& widths, std::vector<double>& thresholds)
+	double extract_bpm_value(std::vector<buffer<double>*>& autocorr_arrays, params& params)
 	{
 		//Array index for calculation of return value
 		long array_index = 0;
@@ -189,7 +213,7 @@ namespace PEAKS
 		//Perform weighting
 		//Faster bpm values are more likely than slower ones
 		for (unsigned int i = 0; i < nArrays; i++)
-			DSP::apply_window(*autocorr_arrays.at(i), DSP::weight);
+			DSP::apply_window(*autocorr_arrays.at(i), params.weight);
 
 		//Peak index values - x axis, indices
 		std::vector<std::vector<long>> peak_indices;
@@ -205,7 +229,7 @@ namespace PEAKS
 			//We have to push something in the vectors before use
 			std::vector<long> init1; std::vector<double> init2;
 			peak_indices.push_back(init1); max_values.push_back(init2);
-			num_peaks.push_back(PEAKS::get_peaks(*autocorr_arrays.at(i), peak_indices.at(i), max_values.at(i), widths.at(i), thresholds.at(i)));
+			num_peaks.push_back(PEAKS::get_peaks(*autocorr_arrays.at(i), peak_indices.at(i), max_values.at(i), params.widths.at(i), params.thresholds.at(i)));
 			//Find max conveniently using iterator - returning pointer to double
 			global_max_values.push_back(*std::max_element(max_values.at(i).begin(), max_values.at(i).end()));
 		}
@@ -213,14 +237,16 @@ namespace PEAKS
 		print_vec("global_max_values", global_max_values);
 
 		//Get confidence for each peak - the higher the better
-		//Confidence is based on ratio max y value - peak value
+		//Confidence is based on ratio max y value - peak value but it's decreased by number of peaks
+		//The more peaks found in one array, the less weight has one peak
 		//We also check how close indices are to their counterparts from other passbands
 		//Adjacence is the amount of spreading along the x axis
 		//The higher the better
 		std::vector<double> confidence;
 		std::vector<unsigned int> adjacence;
 		std::vector<long> peaks;
-		unsigned int num = 0;
+		std::vector<double> average;
+
 		//Create peak using outer for-loop (i,j)
 		//Then forward compare with created inner peak (n, k)
 		for (unsigned int i = 0; i < nArrays; i++)
@@ -229,12 +255,12 @@ namespace PEAKS
 			{
 				peak peak_outer(i, j);
 				//Check if (i,j) is in already in vector
-				if (PEAKS::find_index(peaks, peak_outer, peak_indices, 30) == -1)
+				if (PEAKS::find_index(peaks, peak_outer, peak_indices, params.adjacence) == -1)
 				{
 					peaks.push_back(peak_indices.at(i).at(j));
+					average.push_back(peak_indices.at(i).at(j));
 					adjacence.push_back(0);
-					confidence.push_back(max_values.at(i).at(j) / global_max_values.at(i));
-					num++;
+					confidence.push_back(max_values.at(i).at(j) / global_max_values.at(i) / num_peaks.at(i));
 				}
 
 				for (unsigned int n = i + 1; n < nArrays; n++)
@@ -242,9 +268,16 @@ namespace PEAKS
 					for (unsigned int k = 0; k < num_peaks.at(n); k++)
 					{
 						peak peak_inner(n, k);
-						if (PEAKS::close_together(peak_outer, peak_inner, peak_indices, 30) == true)
+						if (PEAKS::close_together(peak_outer, peak_inner, peak_indices, params.adjacence) == true)
 						{
-							adjacence.at(PEAKS::find_index(peaks, peak_outer, peak_indices, 30))++;
+							int found_index = PEAKS::find_index(peaks, peak_outer, peak_indices, params.adjacence);
+							if (found_index != -1)
+							{
+								adjacence.at(found_index)++;
+								average.at(found_index) *= adjacence.at(found_index);
+								average.at(found_index) += peak_indices.at(n).at(k);
+								average.at(found_index) /= (adjacence.at(found_index) + 1);
+							}
 						}
 						//std::cout << "i" << i << " j" << j << " n" << n << " k" << k << std::endl;
 					}
@@ -253,10 +286,11 @@ namespace PEAKS
 		}
 
 		std::cout << "Results:" << std::endl;
-		std::cout << "Num = " << num << std::endl;
+		std::cout << "Num = " << peaks.size() << std::endl;
 		print_vec("peaks", peaks);
 		print_vec("confidence", confidence);
 		print_vec("adjacence", adjacence);
+		print_vec("average", average);
 
 		//Now what we have to do basically is to merge the 2 vectors
 		//and get the max value adjacence * confidence
@@ -264,7 +298,7 @@ namespace PEAKS
 		unsigned int ind = 0;
 		for (unsigned int i = 0; i < confidence.size(); i++)
 		{
-			double conf_adj = confidence.at(i) * (double)adjacence.at(i);
+			double conf_adj = confidence.at(i) * ((double)adjacence.at(i));
 			if (conf_adj > max_conf_adj)
 			{
 				max_conf_adj = conf_adj;
@@ -273,10 +307,10 @@ namespace PEAKS
 		}
 
 		//Extract the index
-		array_index = peaks.at(ind);
+		array_index = average.at(ind);
 
-		double min_lag = (double)60 / bpm_max;
-		double max_lag = (double)60 / bpm_min;
+		double min_lag = (double)60 / params.bpm_max;
+		double max_lag = (double)60 / params.bpm_min;
 
 		//Return the calculated bpm value from the max index
 		double bpm_lag = min_lag + (max_lag - min_lag) / size * array_index;
@@ -284,7 +318,7 @@ namespace PEAKS
 		return 60.0 / bpm_lag;
 	}
 
-//#pragma optimize("", off)  
+	//#pragma optimize("", off)  
 
 }
 
