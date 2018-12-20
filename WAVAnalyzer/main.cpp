@@ -6,7 +6,6 @@
 #include "..\..\WAVAnalyzer\WAVAnalyzer\WAVFile.h"
 #include "..\..\WAVAnalyzer\WAVAnalyzer\DSP.h"
 #include "..\..\WAVAnalyzer\WAVAnalyzer\PEAKS.h"
-#include "..\..\WAVAnalyzer\WAVAnalyzer\Biquad.h"
 #include "..\..\WAVAnalyzer\WAVAnalyzer\BiquadCascade.h"
 
 //Uses boost library. In Project options set include path to c:\program files\boost
@@ -20,7 +19,7 @@
 #define BPM_MIN_VALUE 80.0
 #define AUTOCORR_RES 3000
 #define MOV_AVG_SIZE 50
-#define ENV_FILT_REC 0.005
+#define ENV_FILT_REC 0.01
 
 //Frequency pass band
 #define LO_FREQ 20.0
@@ -57,6 +56,13 @@ int main()
 
 	double bpm_value;			//Final bpm value
 
+	//*****************************
+	//* PARAMS FOR BPM EXTRACTION *
+	//*****************************
+	std::vector<double> widths; widths.push_back(500.0); widths.push_back(500.0); widths.push_back(500.0);
+	std::vector<double> thres; thres.push_back(0.3); thres.push_back(0.3); thres.push_back(0.3);
+	PEAKS::params bpm_params(BPM_MIN_VALUE, BPM_MAX_VALUE, widths, thres, DSP::weight, 30);
+
 	//************************
 	//* WAV FILE DECLARATION *
 	//************************
@@ -81,7 +87,7 @@ int main()
 	//*****************
 	//* WAV FILE READ *
 	//*****************
-	std::ifstream read_wav("med140.wav", std::ios_base::in | std::ios_base::binary);
+	std::ifstream read_wav("wavdatei9.wav", std::ios_base::in | std::ios_base::binary);
 	if (read_wav.is_open() == false)
 		exit(-1);
 	wavfile.read_wav_file(read_wav);
@@ -218,7 +224,7 @@ int main()
 	long srate = sample_rate / 4;
 	time_downsample1.init_buffer(samples * 2, srate * 2);
 	time_downsample2.init_buffer(samples, srate);
-	DSP::downsample_buffer(time_domain, time_downsample2, 4);
+	DSP::downsample_buffer(time_domain, time_downsample2, 4, 0);
 
 	freq_downsample.init_buffer(samples * 2, srate);
 	DSP::perform_fft(time_downsample2, freq_downsample, +1);
@@ -234,7 +240,13 @@ int main()
 
 	env_downsample.init_buffer(autosize, srate);
 	DSP::envelope_filter(autocorr_ds, env_downsample, ENV_FILT_REC);
-	bpm_value = DSP::extract_bpm_value(env_downsample, BPM_MIN_VALUE, BPM_MAX_VALUE);
+
+	std::vector<buffer<double>*> buffs;
+	buffs.push_back(&env_downsample);
+	std::vector<double> widts; widts.push_back(500.0); 
+	std::vector<double> thrs; thrs.push_back(0.3); 
+
+	bpm_value = PEAKS::extract_bpm_value(buffs, bpm_params);
 	std::cout << "The BPM downsampled value is: " << bpm_value << std::endl;
 
 	//*************************
@@ -252,9 +264,9 @@ int main()
 	buffer<double> biquad_env;
 	
 	//Initialize Biquad Cascades
-	BiquadCascade* pCascadeLow = new BiquadCascade(BiquadType_Bandpass, 12, 20.0 / srate, 80.0 / srate);
-	BiquadCascade* pCascadeMid = new BiquadCascade(BiquadType_Bandpass, 12, 80.0 / srate, 140.0 / srate);
-	BiquadCascade* pCascadeHigh = new BiquadCascade(BiquadType_Bandpass, 12, 140.0 / srate, 200.0 / srate);
+	BiquadCascade* pCascadeLow = new BiquadCascade(BiquadType_Bandpass, 12, 80.0 / sample_rate, 160.0 / sample_rate);
+	BiquadCascade* pCascadeMid = new BiquadCascade(BiquadType_Bandpass, 12, 160.0 / sample_rate, 300.0 / sample_rate);
+	BiquadCascade* pCascadeHigh = new BiquadCascade(BiquadType_Bandpass, 12, 300.0 / sample_rate, 480.0 / sample_rate);
 
 	//Initialize the Biquad buffers
 	biquad_buffer_L.init_buffer(wavfile.get_size(), sample_rate);
@@ -303,55 +315,75 @@ int main()
 	plot(biquad_wavbuffer, gp5);
 #endif
 
+	//*************************
+	//* DOWNSAMPLE FOR BIQUAD *
+	//*************************
+	buffer<double> biquad_ds_L;
+	buffer<double> biquad_ds_M;
+	buffer<double> biquad_ds_H;
+
+	//First, downsample biquad information
+	long downsize = wavfile.get_size() / 4;
+	long downsrate = srate; //Used from previous section
+
+	//Init the buffers
+	biquad_ds_L.init_buffer(downsize, downsrate);
+	biquad_ds_M.init_buffer(downsize, downsrate);
+	biquad_ds_H.init_buffer(downsize, downsrate);
+
+	//Downsample the buffers
+	DSP::downsample_buffer(biquad_buffer_L, biquad_ds_L, 4, 1);
+	DSP::downsample_buffer(biquad_buffer_M, biquad_ds_M, 4, 1);
+	DSP::downsample_buffer(biquad_buffer_H, biquad_ds_H, 4, 1);
+
 	//*********************************
 	//* BIQUAD FILTER BPM CALCULATION *
 	//*********************************
-	biquad_autocorr_L.init_buffer(AUTOCORR_RES, sample_rate);
-	biquad_autocorr_M.init_buffer(AUTOCORR_RES, sample_rate);
-	biquad_autocorr_H.init_buffer(AUTOCORR_RES, sample_rate);
-	biquad_env.init_buffer(wavfile.get_size(), sample_rate);
-
+	biquad_autocorr_L.init_buffer(AUTOCORR_RES, downsrate);
+	biquad_autocorr_M.init_buffer(AUTOCORR_RES, downsrate);
+	biquad_autocorr_H.init_buffer(AUTOCORR_RES, downsrate);
+	biquad_env.init_buffer(downsize, downsrate);
 
 	//LOW PASSBAND
-	DSP::envelope_filter(biquad_buffer_L, biquad_env, ENV_FILT_REC);
+	DSP::envelope_filter(biquad_ds_L, biquad_env, ENV_FILT_REC);
 	DSP::build_autocorr_array(biquad_env, biquad_autocorr_L, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	double bpm_value_biquad = DSP::extract_bpm_value(biquad_autocorr_L, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	std::cout << "LOW PASSBAND: The BPM biquad value is: " << bpm_value_biquad << std::endl;
 
-#ifdef PLOT_BIQUAD_AUTOCORR
+#ifdef PLOT_BIQUAD_AUTOCORR_BASE
 	Gnuplot gp6("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
 	plot(biquad_autocorr_L, gp6);
 #endif
 
 	//MID PASSBAND
-	DSP::envelope_filter(biquad_buffer_M, biquad_env, ENV_FILT_REC);
+	DSP::envelope_filter(biquad_ds_M, biquad_env, ENV_FILT_REC);
 	DSP::build_autocorr_array(biquad_env, biquad_autocorr_M, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	bpm_value_biquad = DSP::extract_bpm_value(biquad_autocorr_M, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	std::cout << "MID PASSBAND: The BPM biquad value is: " << bpm_value_biquad << std::endl;
 
-#ifdef PLOT_BIQUAD_AUTOCORR
+#ifdef PLOT_BIQUAD_AUTOCORR_BASE
 	Gnuplot gp7("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
 	plot(biquad_autocorr_M, gp7);
 #endif
 
 	//HIGH PASSBAND
-	DSP::envelope_filter(biquad_buffer_H, biquad_env, ENV_FILT_REC);
+	DSP::envelope_filter(biquad_ds_H, biquad_env, ENV_FILT_REC);
 	DSP::build_autocorr_array(biquad_env, biquad_autocorr_H, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	bpm_value_biquad = DSP::extract_bpm_value(biquad_autocorr_H, BPM_MIN_VALUE, BPM_MAX_VALUE);
 	std::cout << "HIGH PASSBAND: The BPM biquad value is: " << bpm_value_biquad << std::endl;
 
-#ifdef PLOT_BIQUAD_AUTOCORR
+#ifdef PLOT_BIQUAD_AUTOCORR_BASE
 	Gnuplot gp8("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
 	plot(biquad_autocorr_H, gp8);
 #endif
 	
+	//CONSOLIDATE BUFFERS
 	std::vector<buffer<double>*> buffers;
 	buffers.push_back(&biquad_autocorr_L);
 	buffers.push_back(&biquad_autocorr_M);
 	buffers.push_back(&biquad_autocorr_H);
-	std::vector<double> widths; widths.push_back(500.0); widths.push_back(500.0); widths.push_back(300.0);
-	std::vector<double> thres; thres.push_back(0.3); thres.push_back(0.3); thres.push_back(0.3);
-	std::cout << "ADVANCED ALGO: The BPM value is: " << PEAKS::extract_bpm_value(buffers, BPM_MIN_VALUE, BPM_MAX_VALUE, widths, thres) << std::endl;
+
+	std::cout << "ADVANCED ALGO: The BPM value is: " << PEAKS::extract_bpm_value(buffers, bpm_params) << std::endl;
 
 #ifdef PLOT_BIQUAD_AUTOCORR
 	Gnuplot gp9("\"C:\\Programme\\gnuplot\\bin\\gnuplot.exe -persist\"");
