@@ -6,6 +6,10 @@
 #include <chrono>
 #include <fstream>
 #include "SplitConsole.hpp"
+#include "bpm_param.hpp"
+
+//Extern parameter list
+extern ParamList param_list;
 
 //Depending on the operating system, there are different methods used for
 //handling the console window
@@ -75,6 +79,7 @@ void SplitConsole::init_splits()
 		this->row_start[i] = 0;
 		this->row_end[i] = 0;
 		this->cursor[i] = 0;
+		this->linenumber[i] = 0;
 
 		for (int j = 0; j < MAX_SIZE; j++)
 			buffer[i][j] = "";
@@ -167,13 +172,17 @@ std::string SplitConsole::process_string(std::string in)
 	for (char& c : in)
 		if (c != '\n')
 			s = s + c;
+
+	//Line numbers at left side must be considered
+	//Line number: '00000> ' length 7
+	int width = this->size.columns - (floor(log10(MAX_LINENBR)) + 3);
 	
 	//Check if length exceeds the console window width, if yes, truncate
-	if (s.length() >= this->size.columns)
-		s = s.substr(0, this->size.columns);
+	if (s.length() >= width)
+		s = s.substr(0, width);
 	else
 	{
-		std::string r(this->size.columns - s.length(), ' ');
+		std::string r(width - s.length(), ' ');
 		s = s + r;
 	}
 
@@ -227,13 +236,45 @@ void SplitConsole::handle_buffer(std::string in, int split, bool inp)
 	}
 }
 
-void SplitConsole::flush_buffer(int split)
+void SplitConsole::flush_buffer(int split, bool read)
 {
+	//Get current line number
+	int linenbr = this->linenumber[split];
+	int count = 0;
+
 	//Send the buffer content to the console
 	for (int i = this->row_start[split]; i <= this->row_end[split]; i++)
 	{
+		//Build linenumber
+		int nbr = linenbr + (count++);
+		nbr %= MAX_LINENBR;
+
+		//Fill with leading zeros
+		int width_max = floor(log10(MAX_LINENBR));
+		int zeros = 0;
+		if (nbr != 0)
+			zeros = width_max - floor(log10(nbr));
+		else
+			zeros = 4;
+
+		//Build zeros string
+		std::string z = "";
+		for (int j = 0; j < zeros; j++)
+			z += "0";
+			
+		//Create string to display
+		std::string s = z + std::to_string(nbr) + "> ";
+
+		//If in read mode, no linenumber must be displayed
+		if (read == true)
+			s = "";
+
+		//If nothing in buffer, no linenumber must be displayed
+		if (this->buffer[split][i] == "")
+			s = "";		
+		
 		set_console_location(0, i);
-		std::cout << this->buffer[split][i];
+		std::cout << s << this->buffer[split][i];
 		std::cout << std::flush;
 	}
 }
@@ -254,7 +295,7 @@ void SplitConsole::WriteToSplitConsole(std::string in, int split)
 		this->size.rows = new_dim.rows;
 		init_splits();
 		for (int i = 0; i < this->split; i++)
-			flush_buffer(i);
+			flush_buffer(i, false);
 	}
 
 	//Remove CR and truncate string if necessary
@@ -264,11 +305,18 @@ void SplitConsole::WriteToSplitConsole(std::string in, int split)
 	if (split > this->split)
 		split = this->split;
 
+	//Handle logging into file
+	log_message(s, split);
+
 	//Handle buffer - false for output
 	handle_buffer(s, split, false);
 
+	//Increase line number, if end of split reached
+	if (this->cursor[split] >= this->row_end[split])
+		this->linenumber[split]++;
+
 	//Send the buffer content to the console
-	flush_buffer(split);
+	flush_buffer(split, false);
 	
 	//Verify if std::cin is pending
 	if (this->awaiting_input == true)
@@ -311,8 +359,11 @@ std::string SplitConsole::ReadFromSplitConsole(std::string prompt, int split)
 
 	//Handle buffer - true for input
 	handle_buffer(s, split, true);
+	//Increase line number, if end of split reached
+	if (this->cursor[split] >= this->row_end[split])
+		this->linenumber[split]++;
 	//Write contents to console
-	flush_buffer(split);
+	flush_buffer(split, true);
 
 	this->awaiting_input = false;
 	
@@ -320,4 +371,68 @@ std::string SplitConsole::ReadFromSplitConsole(std::string prompt, int split)
 	this->mtx.unlock();
 
 	return user_value;
+}
+
+void SplitConsole::log_message(std::string& message, int split)
+{
+	if (param_list.get<bool>("split logging") == true)
+	{
+		//Create logfile name
+		std::string fn = "console_log_" + std::to_string(split) + ".txt";
+		//Open file for output
+		std::ofstream fs(fn, std::ios_base::ate | std::ios_base::app);
+		if (fs.is_open() == false)
+			return;
+		//Get timestamp
+		std::string msg = "";
+		create_timestamp(msg);
+		//Build message
+		msg = "<" + msg + "> " + message;
+		//Write log message to file
+		fs << msg << "\n";
+		//Close file handle
+		fs.close();
+	}
+}
+
+void SplitConsole::create_timestamp(std::string& msg)
+{
+	std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+	auto duration = now.time_since_epoch();
+
+	typedef std::chrono::duration<int, std::ratio_multiply<std::chrono::hours::period, std::ratio<8>>::type> Days; /* UTC: +8:00 */
+
+	Days days = std::chrono::duration_cast<Days>(duration);
+	duration -= days;
+	auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+	duration -= hours;
+	auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
+	duration -= minutes;
+	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+	duration -= seconds;
+	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+	duration -= milliseconds;
+	auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+	duration -= microseconds;
+	auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+	
+	std::string h = std::to_string(hours.count() + 17 % 24);
+	if (h.length() == 1)
+		h = "0" + h;
+	std::string m = std::to_string(minutes.count());
+	if (m.length() == 1)
+		m = "0" + m;
+	std::string s = std::to_string(seconds.count());
+	if (s.length() == 1)
+		s = "0" + s;
+	std::string ms = std::to_string(milliseconds.count());
+	if (ms.length() == 1)
+		ms = "00" + ms;
+	else if (ms.length() == 2)
+		ms = "0" + ms;
+	
+	msg += h; msg += ":";
+	msg += m; msg += ":";
+	msg += s; msg += ".";
+	msg += ms;
 }

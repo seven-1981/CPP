@@ -12,10 +12,6 @@
 #include <vector>
 #include <mutex>
 #include "bpm_globals.hpp"
-#include "SplitConsole.hpp"
-
-//Extern split console instance
-extern SplitConsole my_console;
 
 //Typedef for wav header info
 typedef struct WAVFile
@@ -45,8 +41,15 @@ public:
 	~BPMAudio();
 
 	//Public interface of audio class
+	//Get the initialization state
+	eError get_state();
+
 	//Captures the samples and stores them in the buffer
 	eError capture_samples();
+
+	//Stop capturing samples
+	//Pending samples are discarded
+	eError stop_recording();
 
 	//Flushes the buffer, can be used to get the data
 	short* flush_buffer();
@@ -66,6 +69,9 @@ public:
 	//Capture wav file in class member buffer - overloaded method
 	//If no struct is provided, data is copied to this->buffer
 	eError read_wav_file(std::ifstream& file);
+
+	//Read standard wav file
+	eError read_std_wav_file();
 
 private:
 

@@ -5,6 +5,9 @@
 #include "bpm_globals.hpp"
 #include "SplitConsole.hpp"
 
+//Extern split console instance
+extern SplitConsole my_console;
+
 //Buffer class - holds a number of buffers of any type
 //Used to buffer recorded samples from the bpm_audio class
 //Provides buffers for sample storage, each buffer has the same size N
@@ -100,7 +103,7 @@ eError BPMBuffer<T>::put_data(T* data)
 	//Put the data into the next buffer
 	for (long i = 0; i < this->size; i++)
 		this->buffers[this->write][i] = data[i];
-
+	
 	//As soon as we have put something inside, the buffer is not empty any more
 	this->empty = false;
 
@@ -116,6 +119,11 @@ eError BPMBuffer<T>::put_data(T* data)
 	//After we have finished, update the flags
 	if (this->lock == true)
 		this->lock = false;
+
+	//Write debug line
+	#ifdef DEBUG_BUFFER
+		my_console.WriteToSplitConsole("Put data in buffer... R/W = " + std::to_string(this->read) + "/" + std::to_string(this->write), SPLIT_ERRORS);
+#endif
 	
 	return eSuccess;		
 }
@@ -156,6 +164,10 @@ T* BPMBuffer<T>::get_data()
 	//Check if buffer is empty
 	if (this->read == this->write)
 		this->empty = true;
+
+	#ifdef DEBUG_BUFFER
+		my_console.WriteToSplitConsole("Get data from buffer... R/W = " + std::to_string(this->read) + "/" + std::to_string(this->write), SPLIT_ERRORS);
+	#endif
 	
 	//Return buffer
 	return this->buffers[this->read_temp];

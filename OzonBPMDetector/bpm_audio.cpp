@@ -3,26 +3,32 @@
 #include <fstream>
 #include "bpm_audio.hpp"
 #include "bpm_globals.hpp"
+#include "bpm_param.hpp"
+#include "SplitConsole.hpp"
+
+//Extern split console instance
+extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 BPMAudio::BPMAudio()
 {
 	//Constructor for audio handler instance
-	//#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Instantiating audio handler class.", SPLIT_AUDIO);
-	//#endif
+	if (param_list.get<bool>("debug audio") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Instantiating audio handler class.", param_list.get<int>("split audio"));
 
 	//Define return value
-	this->init_state = eSuccess;	
+	this->init_state = eSuccess;
 
 	//Set ready flag
 	this->buffer_ready = false;
 
 	//The soundcard initialisation procedure is not executed on WIN32
-	#ifndef _WIN32
+#ifndef _WIN32
 
 	//Get soundcard info
 	std::vector<std::string> dev_list = list_names();
-	
+
 	//Prepare device name string
 	std::string s = "hw:";
 	bool name_assigned = false;
@@ -61,25 +67,23 @@ BPMAudio::BPMAudio()
 			s = s + "," + std::to_string(PCM_SUBDEVICE);
 
 			//Open audio device
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Opening audio device " + s, SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Opening audio device " + s, param_list.get<int>("split audio"));
 
 			int err;
 			err = snd_pcm_open(&pcm_handle, s.c_str(), PCM_CAPTURE_MODE, 0);
 
 			if (err < 0)
 			{
-				#ifdef DEBUG_AUDIO
-					my_console.WriteToSplitConsole("Error opening audio device.", SPLIT_ERRORS);
-				#endif
+				if (param_list.get<bool>("debug audio") == true)
+					my_console.WriteToSplitConsole("BPM Audio Class: Error opening audio device.", param_list.get<int>("split errors"));
+
 				this->init_state = eAudio_ErrorOpeningAudioDevice;
 			}
 			else
 			{
-				#ifdef DEBUG_AUDIO
-					my_console.WriteToSplitConsole("Success opening audio device.", SPLIT_AUDIO);
-				#endif
+				if (param_list.get<bool>("debug audio") == true)
+					my_console.WriteToSplitConsole("BPM Audio Class: Success opening audio device.", param_list.get<int>("split audio"));
 			}
 		}
 	}
@@ -96,16 +100,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params_malloc(&hw_params);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error allocating audio hw parameter structure.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error allocating audio hw parameter structure.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorAllocatingHwStruc;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success allocating hw parameter structure.", SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success allocating hw parameter structure.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -116,16 +119,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params_any(pcm_handle, hw_params);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error initializing audio hw parameter structure.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error initializing audio hw parameter structure.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorInitHwStruc;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success initializing hw parameter structure.", SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success initializing hw parameter structure.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -136,16 +138,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params_set_access(pcm_handle, hw_params, PCM_ACCESS_MODE);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error setting access mode.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error setting access mode.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorSettingAccessMode;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success setting access mode.", SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success setting access mode.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -156,16 +157,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params_set_format(pcm_handle, hw_params, PCM_AUDIO_FORMAT);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error setting audio format.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error setting audio format.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorSettingFormat;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success setting audio format.", SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success setting audio format.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -177,16 +177,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params_set_rate_near(pcm_handle, hw_params, &rate, 0);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error setting sample rate.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error setting sample rate.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorSettingSampleRate;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success setting sample rate.", SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success setting sample rate.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -197,16 +196,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params_set_channels(pcm_handle, hw_params, PCM_CHANNELS);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error setting channels.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error setting channels.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorSettingChannels;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success setting channels.", SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success setting channels.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -217,17 +215,16 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_hw_params(pcm_handle, hw_params);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error setting hardware parameters.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error setting hardware parameters.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorSettingHwParameters;
 		}
 		else
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success setting hardware parameters.", SPLIT_AUDIO);
-			#endif
-			
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success setting hardware parameters.", param_list.get<int>("split audio"));
+
 			//Free memory 
 			snd_pcm_hw_params_free(hw_params);
 		}
@@ -240,16 +237,15 @@ BPMAudio::BPMAudio()
 		err = snd_pcm_prepare(pcm_handle);
 		if (err < 0)
 		{
-			#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Error activating audio interface.", SPLIT_ERRORS);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error activating audio interface.", param_list.get<int>("split errors"));
+
 			this->init_state = eAudio_ErrorActivateAudioInterf;
 		}
 		else
 		{
-			//#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Success activating audio interface.", SPLIT_AUDIO);
-			//#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Success activating audio interface.", param_list.get<int>("split audio"));
 		}
 	}
 
@@ -264,25 +260,30 @@ BPMAudio::BPMAudio()
 	//of samples and store it into the buffer.
 	//Of course, the caller has to evaluate the init_state attribute before doing something.
 
-	#else
+#else
 	//At this point, we have to initialize the audio buffer for WIN32 use.
 	this->buffer = (short*)malloc(PCM_BUF_SIZE * sizeof(short) * PCM_CHANNELS);
-	#endif
+#endif
 }
 
 BPMAudio::~BPMAudio()
 {
 	//Destructor
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Closing audio device.", SPLIT_MAIN);
-	#endif
+	if (param_list.get<bool>("debug audio") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Closing audio device.", param_list.get<int>("split main"));
 
-	#ifndef _WIN32
+#ifndef _WIN32
 
 	snd_pcm_close(this->pcm_handle);
 	free(this->buffer);
 
-	#endif	
+#endif	
+}
+
+eError BPMAudio::get_state()
+{
+	//Return the init state
+	return this->init_state;
 }
 
 int BPMAudio::get_num_soundcards()
@@ -291,15 +292,15 @@ int BPMAudio::get_num_soundcards()
 	int totalCards = 0;
 
 	//Function not implemented on WIN32
-	#ifndef _WIN32
+#ifndef _WIN32
 
 	//First card is 0, so we have to start with -1
-    	int cardNum = -1;
-    	int err;
+	int cardNum = -1;
+	int err;
 
-    	while(1) 
+	while (1)
 	{
-        	//Get next sound card's card number
+		//Get next sound card's card number
 		err = snd_card_next(&cardNum);
 		if (err < 0)
 			break;
@@ -310,12 +311,12 @@ int BPMAudio::get_num_soundcards()
 		++totalCards;
 	}
 
-    	//ALSA allocates some memory to load its config file when we call
-    	//snd_card_next. Now that we're done getting the info, tell ALSA
-    	//to unload the info and release the memory.
-    	snd_config_update_free_global();
+	//ALSA allocates some memory to load its config file when we call
+	//snd_card_next. Now that we're done getting the info, tell ALSA
+	//to unload the info and release the memory.
+	snd_config_update_free_global();
 
-	#endif
+#endif
 
 	return totalCards;
 }
@@ -328,13 +329,13 @@ std::vector<std::string> BPMAudio::list_names()
 	//If no sound cards found, issue error
 	if (n < 1)
 		this->init_state = eAudio_NoSoundCardsFound;
-	
+
 	//Declare return value
 	std::vector<std::string> retval;
 	int err;
 
 	//Function not implemented on WIN32
-	#ifndef _WIN32
+#ifndef _WIN32
 
 	for (int i = 0; i < n; i++)
 	{
@@ -364,9 +365,9 @@ std::vector<std::string> BPMAudio::list_names()
 		else
 		{
 			std::string s = snd_ctl_card_info_get_name(cardInfo);
-		 	#ifdef DEBUG_AUDIO
-				my_console.WriteToSplitConsole("Card " + std::to_string(i) + " = " + s, SPLIT_AUDIO);
-			#endif
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Card " + std::to_string(i) + " = " + s, param_list.get<int>("split audio"));
+
 			retval.push_back(s);
 		}
 
@@ -379,7 +380,7 @@ std::vector<std::string> BPMAudio::list_names()
 	//to unload the info and free up that mem
 	snd_config_update_free_global();
 
-	#endif
+#endif
 
 	//Return name vector
 	return retval;
@@ -392,9 +393,9 @@ eError BPMAudio::capture_samples()
 
 	//Declare return value
 	eError retval = eSuccess;
-	
+
 	//Function not implemented on WIN32
-	#ifndef _WIN32
+#ifndef _WIN32
 
 	//Check if the audio interface has been properly set up
 	if (this->init_state != eSuccess)
@@ -408,22 +409,72 @@ eError BPMAudio::capture_samples()
 
 	//Check if everything went fine
 	if (err < 0)
+	{
 		retval = eAudio_ErrorCapturingAudio;
+		if (param_list.get<bool>("debug audio") == true)
+			my_console.WriteToSplitConsole("BPM Audio Class: Error during capture of audio data: " + std::to_string(err), param_list.get<int>("split errors"));
+		int err_drop = snd_pcm_drop(pcm_handle);
+		if (param_list.get<bool>("debug audio") == true)
+			my_console.WriteToSplitConsole("BPM Audio Class: Dropping samples: " + std::to_string(err_drop), param_list.get<int>("split errors"));
+		int err_rec = snd_pcm_recover(pcm_handle, err, 0);
+		if (param_list.get<bool>("debug audio") == true)
+			my_console.WriteToSplitConsole("BPM Audio Class: Recovering: " + std::to_string(err_rec), param_list.get<int>("split errors"));
+
+	}
 	else
 	{
 		//Set the ready flag
 		this->buffer_ready = true;
 
-	 	#ifdef DEBUG_AUDIO
-			my_console.WriteToSplitConsole("Successfully captured audio data: " + std::to_string(err), SPLIT_AUDIO);
-		#endif
+		static int counter = 0;
+		if (param_list.get<bool>("debug audio") == true)
+			my_console.WriteToSplitConsole("BPM Audio Class: Successfully captured audio: " + std::to_string(err) + ", #" + std::to_string(counter++), param_list.get<int>("split audio"));
 	}
 
 	//Unlock the mutex
 	this->mtx.unlock();
 
-	#endif
-	
+#endif
+
+	return retval;
+}
+
+eError BPMAudio::stop_recording()
+{
+	//Declare return value
+	eError retval = eSuccess;
+
+#ifndef _WIN32
+
+	//Stop the PCM recording
+	int err = snd_pcm_drop(pcm_handle);
+
+	if (param_list.get<bool>("debug audio") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Stopping.", param_list.get<int>("split audio"));
+
+	//Check if everything went fine
+	if (err < 0)
+	{
+		retval = eAudio_ErrorCapturingAudio;
+		if (param_list.get<bool>("debug audio") == true)
+			my_console.WriteToSplitConsole("BPM Audio Class: Error during stopping: " + std::to_string(err), param_list.get<int>("split errors"));
+	}
+	else
+	{
+		//Prepare again for next use
+		int err_prep = snd_pcm_prepare(pcm_handle);
+		//Check if everything went fine
+		if (err_prep < 0)
+		{
+			retval = eAudio_ErrorCapturingAudio;
+			if (param_list.get<bool>("debug audio") == true)
+				my_console.WriteToSplitConsole("BPM Audio Class: Error during prepare: " + std::to_string(err_prep), param_list.get<int>("split errors"));
+		}
+
+	}
+
+#endif
+
 	return retval;
 }
 
@@ -464,7 +515,7 @@ std::ostream& BPMAudio::write_word(std::ostream& out_stream, Word value, unsigne
 	//We take the data type size as starting value and counting down the bytes
 	//Extracts one byte from the value and puts it into the output stream
 	//Then a bit shift must be done to get the next byte
-	for ( ; size != 0; --size, value >>= 8)
+	for (; size != 0; --size, value >>= 8)
 		out_stream.put(static_cast<char>(value & 0xFF));
 	return out_stream;
 }
@@ -478,7 +529,7 @@ Word BPMAudio::read_word(std::istream& in_stream, bool little_endian, unsigned i
 	Word word = 0;
 	unsigned int width = size;
 
-	for( ; size != 0; --size)
+	for (; size != 0; --size)
 	{
 		in_stream.get(c);
 		if (little_endian == false)
@@ -486,7 +537,7 @@ Word BPMAudio::read_word(std::istream& in_stream, bool little_endian, unsigned i
 			word |= c;
 			if (size > 1)
 				word <<= 8;
-		}	
+		}
 		else
 		{
 			Word temp_word = (Word)(c & 0xFF);
@@ -495,14 +546,14 @@ Word BPMAudio::read_word(std::istream& in_stream, bool little_endian, unsigned i
 		}
 	}
 
-	return word;		
+	return word;
 }
 
 eError BPMAudio::write_wav_file(std::ofstream& file, short* data)
 {
 	//Declare return value
 	eError retval = eSuccess;
-	
+
 	//Check if the audio interface has been properly set up
 	if (this->init_state != eSuccess)
 		return init_state;
@@ -510,19 +561,19 @@ eError BPMAudio::write_wav_file(std::ofstream& file, short* data)
 	//Write .wav file header
 	//Note: file must be created in binary mode
 	file << "RIFF----WAVEfmt ";	//Chunk size to be filled in later
-	write_word(file, PCM_WAV_FMT_LENGTH,  4);	//No extension data
-	write_word(file, PCM_WAV_FORMAT_TAG,  2);	//PCM - integer samples
-	write_word(file, PCM_CHANNELS, 	      2);	//One channel - mono file
+	write_word(file, PCM_WAV_FMT_LENGTH, 4);	//No extension data
+	write_word(file, PCM_WAV_FORMAT_TAG, 2);	//PCM - integer samples
+	write_word(file, PCM_CHANNELS, 2);	//One channel - mono file
 	write_word(file, PCM_WAV_SAMPLE_RATE, 4);	//Samples per second / Hz
-	write_word(file, PCM_WAV_BYTES_SEC,   4);	//Sample rate * bits per sample * channels / 8 - bytes/s
-	write_word(file, PCM_WAV_FRAME_SIZE,  2);	//Data block size in bytes
-	write_word(file, PCM_WAV_BITS,	      2);	//Number of bits per sample (multiple of 8)	
-	
-	//Write the data chunk header
+	write_word(file, PCM_WAV_BYTES_SEC, 4);	//Sample rate * bits per sample * channels / 8 - bytes/s
+	write_word(file, PCM_WAV_FRAME_SIZE, 2);	//Data block size in bytes
+	write_word(file, PCM_WAV_BITS, 2);	//Number of bits per sample (multiple of 8)	
+
+										//Write the data chunk header
 	size_t data_chunk_pos = file.tellp();
 	file << "data----";		//Chunk size to be filled in later
-	
-	//Write the audio samples - following code block works only for mono probably
+
+							//Write the audio samples - following code block works only for mono probably
 	for (long i = 0; i < PCM_BUF_SIZE; i++)
 		write_word(file, (short)(data[i]), PCM_WAV_FRAME_SIZE);
 
@@ -568,7 +619,7 @@ eError BPMAudio::read_wav_file(std::ifstream& file, WAVFile& wav_file)
 {
 	//Declare return value
 	eError retval = eSuccess;
-	
+
 	//Check if the audio interface has been properly set up
 	if (file.is_open() == false)
 		return eAudio_ErrorInputStreamNotOpen;
@@ -579,83 +630,81 @@ eError BPMAudio::read_wav_file(std::ifstream& file, WAVFile& wav_file)
 	//configuration and the amount of data. But since we know the 
 	//sample rate and the buffer size, we don't have to do this. Thus, it
 	//only works for wav files made by this program!
-	
+
 	//Ignore the first four bytes
 	int ignore = read_word<int>(file, false);
 
 	//Now we read the total file size
 	unsigned int file_size = read_word<unsigned int>(file, true);
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Reading wav file. Size = " + std::to_string(file_size) + " bytes.", SPLIT_AUDIO);
-	#endif
-	
+	if (param_list.get<bool>("debug wavfile") == true)
+		my_console.WriteToSplitConsole("Reading wav file. Size = " + std::to_string(file_size) + " bytes.", param_list.get<int>("split audio"));
+
 	//Ignore next 8 bytes - WAVE, fmt_
 	ignore = read_word<int>(file, false);
 	ignore = read_word<int>(file, false);
 
 	//Header size
 	unsigned int header_size = read_word<unsigned int>(file, true);
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Header size = " + std::to_string(header_size) + " bytes.", SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Header size = " + std::to_string(header_size) + " bytes.", param_list.get<int>("split audio"));
 
 	//Get audio format and number of channels
 	short audio_format = read_word<short>(file, true);
 	short num_channels = read_word<short>(file, true);
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Audio format = " + std::to_string(audio_format), SPLIT_AUDIO);
-		my_console.WriteToSplitConsole("Channels = " + std::to_string(num_channels), SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+	{
+		my_console.WriteToSplitConsole("BPM Audio Class: Audio format = " + std::to_string(audio_format), param_list.get<int>("split audio"));
+		my_console.WriteToSplitConsole("BPM Audio Class: Channels = " + std::to_string(num_channels), param_list.get<int>("split audio"));
+	}
 
 	//Get sample rate and byte rate
 	unsigned int sample_rate = read_word<unsigned int>(file, true);
 	unsigned int byte_rate = read_word<unsigned int>(file, true);
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Sample rate = " + std::to_string(sample_rate) + " Hz.", SPLIT_AUDIO);
-		my_console.WriteToSplitConsole("Byte rate = " + std::to_string(byte_rate) + " Hz.", SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+	{
+		my_console.WriteToSplitConsole("BPM Audio Class: Sample rate = " + std::to_string(sample_rate) + " Hz.", param_list.get<int>("split audio"));
+		my_console.WriteToSplitConsole("BPM Audio Class: Byte rate = " + std::to_string(byte_rate) + " Hz.", param_list.get<int>("split audio"));
+	}
 
 	//Get frame size and bits per sample
 	short frame_size = read_word<short>(file, true);
 	short bits_sample = read_word<short>(file, true);
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Frame size = " + std::to_string(frame_size) + " bytes.", SPLIT_AUDIO);
-		my_console.WriteToSplitConsole("Bits per sample = " + std::to_string(bits_sample) + " bits.", SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+	{
+		my_console.WriteToSplitConsole("BPM Audio Class: Frame size = " + std::to_string(frame_size) + " bytes.", param_list.get<int>("split audio"));
+		my_console.WriteToSplitConsole("BPM Audio Class: Bits per sample = " + std::to_string(bits_sample) + " bits.", param_list.get<int>("split audio"));
+	}
 
 	//Now at last, get the data chunk size - first 4 bytes "data" ignored
 	ignore = read_word<int>(file, false);
 	unsigned int data_size = read_word<unsigned int>(file, true);
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Data bytes = " + std::to_string(data_size) + " bytes.", SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Data bytes = " + std::to_string(data_size) + " bytes.", param_list.get<int>("split audio"));
 
 	//Create wav file struct
-	wav_file.file_size    = file_size;
-	wav_file.header_size  = header_size;
+	wav_file.file_size = file_size;
+	wav_file.header_size = header_size;
 	wav_file.audio_format = audio_format;
 	wav_file.num_channels = num_channels;
-	wav_file.sample_rate  = sample_rate;
-	wav_file.byte_rate    = byte_rate;
-	wav_file.frame_size   = frame_size;
-	wav_file.bits_sample  = bits_sample;
-	wav_file.data_size    = data_size;
+	wav_file.sample_rate = sample_rate;
+	wav_file.byte_rate = byte_rate;
+	wav_file.frame_size = frame_size;
+	wav_file.bits_sample = bits_sample;
+	wav_file.data_size = data_size;
 
 	//Prepare buffer - malloc takes size in bytes
 	//Important! Caller has to handle corresponding 'free' for this memory block!
 	wav_file.buffer = (short*)malloc(data_size);
 
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Reading " + std::to_string(data_size / frame_size) + " frames.", SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Reading " + std::to_string(data_size / frame_size) + " frames.", param_list.get<int>("split audio"));
 
 	//Transfer data to struct
 	for (long i = 0; i < (data_size / frame_size); ++i)
-		wav_file.buffer[i] = read_word<short>(file, true);	
+		wav_file.buffer[i] = read_word<short>(file, true);
 
-	#ifdef DEBUG_AUDIO
-		my_console.WriteToSplitConsole("Success.", SPLIT_AUDIO);
-	#endif
+	if (param_list.get<bool>("debug wavfile") == true)
+		my_console.WriteToSplitConsole("BPM Audio Class: Success.", param_list.get<int>("split audio"));
 
 	return eSuccess;
 }
@@ -664,17 +713,17 @@ eError BPMAudio::read_wav_file(std::ifstream& file)
 {
 	//Declare return value
 	eError retval = eSuccess;
-	
+
 	//Check if the audio interface has been properly set up
 	if (file.is_open() == false)
 		return eAudio_ErrorInputStreamNotOpen;
 
 	//Prepare struct
 	WAVFile temp_wav_file;
-	
+
 	//Call member function to read wav file
 	read_wav_file(file, temp_wav_file);
-		
+
 	//Now we just copy the received samples into the buffer
 	for (long i = 0; i < (temp_wav_file.data_size / temp_wav_file.frame_size); ++i)
 		this->buffer[i] = temp_wav_file.buffer[i];
@@ -683,4 +732,36 @@ eError BPMAudio::read_wav_file(std::ifstream& file)
 	free(temp_wav_file.buffer);
 
 	return eSuccess;
+}
+
+eError BPMAudio::read_std_wav_file()
+{
+	//Declare return value
+	eError retval = eSuccess;
+
+	//Here, we set the wav file ourselves
+	std::ifstream file(STANDARD_WAVFILE, std::ios_base::out);
+
+	//Check if the audio interface has been properly set up
+	if (file.is_open() == false)
+		return eAudio_ErrorInputStreamNotOpen;
+
+	//Prepare struct
+	WAVFile temp_wav_file;
+
+	//Call member function to read wav file
+	read_wav_file(file, temp_wav_file);
+
+	//Now we just copy the received samples into the buffer
+	for (long i = 0; i < (temp_wav_file.data_size / temp_wav_file.frame_size); ++i)
+		this->buffer[i] = temp_wav_file.buffer[i];
+
+	//We have to free the memory allocated with malloc in the other read_wav_file function
+	free(temp_wav_file.buffer);
+
+	//Close the file handle
+	file.close();
+
+	return eSuccess;
+
 }

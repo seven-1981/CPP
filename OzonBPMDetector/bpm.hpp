@@ -3,13 +3,15 @@
 
 #include "GPIOPin.hpp"
 #include "GPIOWriter.hpp"
+#include "GPIOButton.hpp"
 #include "FCState.hpp"
 #include "FCMachine.hpp"
 #include "FCQueue.hpp"
+#include "FCSocket.hpp"
 #include "SplitConsole.hpp"
 #include "bpm_audio.hpp"
 #include "bpm_analyze.hpp"
-#include "bpm_buffer.hpp"
+#include "bpm_param.hpp"
 #include <string>
 #include <thread>
 #include <chrono>
@@ -19,6 +21,9 @@
 //We use a special splitted console
 //This one has to be defined 'external' in other files
 SplitConsole my_console(NUMBER_OF_SPLITS);
+//Generate parameter list for application
+//Has to be defined 'external' in files that use parameter list
+ParamList param_list;
 
 //Struct for application information
 struct FCApplInfo
@@ -27,6 +32,7 @@ struct FCApplInfo
 	FCQueue* os_queue;
 	//Threads can't return values, we use std::async and future instead
 	std::future<eError> os_thread;
+	std::future<eError> os_SIR;
 
 	//Pointer for state machine access
 	FCMachine* os_machine;
@@ -36,13 +42,21 @@ struct FCApplInfo
 
 	//Timestamp of starting time
 	std::chrono::high_resolution_clock::time_point start;
+
+	//Socket for TCP connection
+	#ifndef _WIN32
+	FCSocket* os_socket;
+	//Future for socket 
+	std::future<eError> socket_thread;
+	#endif
 } appl_info;
 
 //Struct for GPIO information
 struct GPIOInfo
 {
+	//Pointer for gpio access
 	GPIOWriter* gpio_writer;
-	GPIOPin* gpio_listener;
+	GPIOButton* gpio_button;
 } gpio_info;
 
 //Struct for BPM counter related information
@@ -50,7 +64,6 @@ struct BPMInfo
 {
 	BPMAudio* bpm_audio;
 	BPMAnalyze* bpm_analyze;
-	BPMBuffer<short>* bpm_buffer;
 } bpm_info;
 
 //Vector for events and timers. Note: the vector is of pointer of FCEvent type, the timers
@@ -75,8 +88,11 @@ std::string get_user_input()
 	//Declare prompt response
 	std::string user_value = "";
 
+	//Get split param
+	int split = param_list.get<int>("split input");
+	
 	//Display command prompt
-	user_value = my_console.ReadFromSplitConsole("OZON BPM prompt -> ", SPLIT_INPUT);
+	user_value = my_console.ReadFromSplitConsole("OZON BPM prompt -> ", split);
 
 	return user_value;
 }
@@ -115,7 +131,7 @@ int handle_user_input(std::string user_value)
 		{
 			retval = std::stoi(s);
 		}
-		catch (std::exception e)
+		catch (...)
 		{
 			//No matter what exception was thrown, we return -1
 			retval = -1;
@@ -138,6 +154,9 @@ void manual_mode()
 	//Declare prompt response
 	std::string user_value = "";
 
+	//Get split param
+	int split = param_list.get<int>("split fc");
+
 	//Check user input
 	while (cont == true)
 	{
@@ -146,7 +165,7 @@ void manual_mode()
 		if (user_value.compare(std::to_string(0)) == 0)
 		{
 			cont = false;
-			my_console.WriteToSplitConsole("Leaving manual mode.", SPLIT_FC);
+			my_console.WriteToSplitConsole("Leaving manual mode.", split);
 			continue;
 		}
 

@@ -4,7 +4,6 @@
 #include "bpm_globals.hpp"
 #include "bpm_audio.hpp"
 #include "bpm_analyze.hpp"
-#include "bpm_buffer.hpp"
 #include <string>
 #include <iostream>
 #include <type_traits>
@@ -54,7 +53,6 @@ public:
 		//Functions with arguments
 		void(*void_int_function)(int);
 		eError(BPMAnalyze::*analyze_pshort_function)(short*);
-		eError(BPMBuffer<short>::*buffer_pshort_function)(short*);
 		eError(BPMAnalyze::*analyze_double_function)(double);
 	} functions;
 
@@ -63,7 +61,6 @@ public:
 	{
 		BPMAudio* audio_instance;
 		BPMAnalyze* analyze_instance;
-		BPMBuffer<short>* buffer_instance;
 	} instances;
 
 	//Constructors - inline
@@ -234,19 +231,6 @@ eError FCEvent::init_event(R(T::*function)(A), T* instance, bool clear)
 		this->functions.analyze_pshort_function = (eError(BPMAnalyze::*)(short*))function;
 		this->instances.analyze_instance = (BPMAnalyze*)instance;
 		this->select = eBPMAnalyzepShortFunction;
-		this->success = true;
-		retval = eSuccess;
-	}
-
-	//Check the template class type
-	if (   (std::is_same<R, eError>::value) 
-            && (std::is_same<T, BPMBuffer<short>>::value) 
-	    && (std::is_same<A, short*>::value))
-	{
-		//Function from BPMBuffer class - return type eError, argument short*
-		this->functions.buffer_pshort_function = (eError(BPMBuffer<short>::*)(short*))function;
-		this->instances.buffer_instance = (BPMBuffer<short>*)instance;
-		this->select = eBPMBufferpShortFunction;
 		this->success = true;
 		retval = eSuccess;
 	}

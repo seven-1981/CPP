@@ -3,6 +3,7 @@
 
 #include "bpm_globals.hpp"
 #include "bpm.hpp"
+#include "bpm_value.hpp"
 #include "FCState.hpp"
 #include "FCMachine.hpp"
 #include "FCQueue.hpp"
@@ -11,15 +12,21 @@
 #include <iostream>
 #include <ctime>
 #include <string>
+#include <chrono>
+#include <fstream>
 
 //Extern split console instance
 extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 //Definition of state machine functions
 //Note: since we are using a split console that uses mutex for
 //handling critical sections, do not use the console in the loop functions
 //The mutex may block and interrupt the loop - use only in entry or exit functions
 //Split console may only be used in loop functions, if theres some mechanism to prevent flooding/blocking
+//Also use the queued events for triggering functions in here, no function calls that
+//block or slow down code execution!
 
 //********************
 //TRANSITION FUNCTIONS
@@ -30,50 +37,49 @@ void goto_state(int state)
 	appl_info.os_machine->set_trans(state);
 }
 
-void goto_state_1()
+void goto_state_BPM()
 {
 	//Set transition
-	appl_info.os_machine->set_trans(1);
+	appl_info.os_machine->set_trans(eStateBPMCounter);
 }
 
-void goto_state_2()
+void goto_state_Timer()
 {
 	//Set transition
-	appl_info.os_machine->set_trans(2);
+	appl_info.os_machine->set_trans(eStateTimer);
 }
 
-void goto_state_3()
+void goto_state_Clock()
 {
 	//Set transition
-	appl_info.os_machine->set_trans(3);
+	appl_info.os_machine->set_trans(eStateClock);
 }
 
-void goto_state_4()
+void goto_state_Manual()
 {
 	//Set transition
-	appl_info.os_machine->set_trans(4);
+	appl_info.os_machine->set_trans(eStateManual);
 }
 
-void goto_state_5()
+void goto_state_Quit()
 {
 	//Set transition
-	appl_info.os_machine->set_trans(5);
+	appl_info.os_machine->set_trans(eStateQuit);
 }
 
-//******************************
-//STATE 0 - INIT STATE - STARTUP
-//******************************
+//*********************************
+//STATE INIT - INIT STATE - STARTUP
+//*********************************
 void init_done()
 {
 	//The initial waiting time has elapsed - continue to BPM counter
 	appl_info.os_machine->set_trans(eStateBPMCounter);
 }
 
-void State0_entry()
+void StateInit_entry()
 {
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("Init state.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("Init state.", param_list.get<int>("split fc"));
 
 	//Start timer - if it elapses, we continue to next state (BPM)
 	START_TIMER(eInitDone);
@@ -81,7 +87,7 @@ void State0_entry()
 	CURRENT_STATE;
 }
 
-FCStates State0_loop()
+FCStates StateInit_loop()
 {
 	//Init state - we display some info
 	std::string s = "init";
@@ -95,39 +101,67 @@ FCStates State0_loop()
 	LOOP_OR_EXIT;
 }
 
-//*********************************************
-//STATE 1 - DEFAULT STARTUP STATE - BPM COUNTER
-//*********************************************
-bool samples_captured = false, copied_audio2buffer = false, copied_to_analyzer = false;
-bool wav_file_read = false;
+//***********************************************
+//STATE BPM - DEFAULT STARTUP STATE - BPM COUNTER
+//***********************************************
+
 bool toggle_old = false;
-int counter1 = 0, counter2 = 0, counter3 = 0;
-double bpm_old = 0.0;
+eBPMCaptureState eCaptureState = eBPM_CaptureStartAudio;
+eBPMAnalyzeState eAnalyzeState = eBPM_AnalyzeReady;
+eBPMCaptureState eCaptureStateOld = eBPM_CaptureStartAudio;
+eBPMAnalyzeState eAnalyzeStateOld = eBPM_AnalyzeReady;
+BPMValue value_handler;
+bool capture_timeout = false;
+bool rms_value_ok = false;
+long long ms_old1 = 0;
+int pos1 = 0;
+unsigned int number = 0;
+bool rms_hyst_ok = false;
+bool rms_timer_started = false;
 
 void supervision_queue()
 {
 	//Display message
-	my_console.WriteToSplitConsole("Timeout supervision of OS queue!", SPLIT_ERRORS);
+	my_console.WriteToSplitConsole("Timeout supervision of OS queue!", param_list.get<int>("split errors"));
 }
 
-void State1_entry()
+void supervision_capture()
 {
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("State1_entry. BPM counter.", SPLIT_FC);
-	#endif
+	capture_timeout = true;
+	my_console.WriteToSplitConsole("Timeout during audio capture!", param_list.get<int>("split errors"));
+}
 
-	samples_captured = false;
-	copied_audio2buffer = false;
+void rms_hyst_callback()
+{
+	rms_hyst_ok = true;
+	my_console.WriteToSplitConsole("RMS hysteresis elapsed!", param_list.get<int>("split errors"));
+}
+
+void StateBPM_entry()
+{
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State_entry. BPM counter.", param_list.get<int>("split fc"));
+
+	//Activate timer interrupt
+	//Not possible yet. Interrupt is blocking rest of process
+	//because it is executed far too frequently
+	//gpio_info.gpio_writer->activate_timer_interrupt();
+	
+	//Reset state machine
+	eCaptureState = eBPM_CaptureStartAudio;
+	eAnalyzeState = eBPM_AnalyzeReady;
+	eCaptureStateOld = eCaptureState;
+	eAnalyzeStateOld = eAnalyzeState;
+	//Reset analyzer
+	SEND_EVENT(eResetAnalyzer);
 
 	START_TIMER(eSupervisionTimer);
 
 	CURRENT_STATE;
 }
 
-FCStates State1_loop()
+FCStates StateBPM_loop()
 {
-	//BPM Counter state
-
 	//Check queue toggle bit
 	if (appl_info.os_queue->toggle != toggle_old)
 	{
@@ -135,91 +169,225 @@ FCStates State1_loop()
 		RESET_TIMER(eSupervisionTimer);
 		START_TIMER(eSupervisionTimer);
 		toggle_old = appl_info.os_queue->toggle;
-	}	
-
-	//1. Capture samples
-	#ifndef _WIN32
-		//1.a On Linux OS, we capture samples.
-		if (samples_captured == false)
-		{
-			SEND_EVENT(eRecordSamples);
-			my_console.WriteToSplitConsole("Capture audio data. Counter1 = " + std::to_string(counter1), SPLIT_FC);
-			counter1++;
-			samples_captured = true;
-		}
-	#else
-		//1.b On WIN32, we can't capture samples, we just read the same wav file for analysis.
-		if (wav_file_read == false)
-		{
-			my_console.WriteToSplitConsole("Reading wav file.", SPLIT_FC);
-			std::ifstream readfile("fast160.wav", std::ios_base::in | std::ios_base::binary);
-			bpm_info.bpm_audio->read_wav_file(readfile);
-			readfile.close();
-			wav_file_read = true;
-		}
-	#endif
-
-	//2. As soon as samples have been captured, handover to buffer
-	if ((GET_INT_DATA(eRecordSamples) == eSuccess || wav_file_read == true) && copied_audio2buffer == false)
-	{
-		SEND_PSHORT_EVENT(eCopyAudioToBuffer, GET_AUDIO_BUFFER);
-		my_console.WriteToSplitConsole("Samples captured. Copy to buffer. Counter2 = " + std::to_string(counter2), SPLIT_FC);
-		counter2++;
-		copied_audio2buffer = true;
-	}
-
-	//3. As soon as flushing has been finished, check if buffer is full. If not, we can capture again.
-	if (GET_INT_DATA(eCopyAudioToBuffer) == eSuccess && bpm_info.bpm_buffer->check_full() == eSuccess)
-	{
-		samples_captured = false;
-		copied_audio2buffer = false;
-		wav_file_read = false;
-		SEND_INT_DATA(eCopyAudioToBuffer, 0, false);
-		my_console.WriteToSplitConsole("Buffer not yet full. Capture again.", SPLIT_FC);
 	}
 	
-	//4. If there is something in the buffer, copy it to analyzer, but only if analyzer is ready
-	if (bpm_info.bpm_buffer->check_ready() == eSuccess && bpm_info.bpm_analyze->get_state() == eReadyForData && copied_to_analyzer == false)
+	//Audio capture state machine
+	short* temp;
+	int record_status;
+	int stop_status;
+	switch(eCaptureState)
 	{
-		//Note: GET_BUFFER flushes it -> this increases the read pointer
-		short* temp_buf = GET_BUFFER;
-		if (temp_buf != nullptr)
+		case eBPM_CaptureStartAudio:
+			//Start capturing
+			#ifndef _WIN32
+				RESET_TIMER(eCaptureTimer);
+				START_TIMER(eCaptureTimer);
+				SEND_EVENT(eRecordSamples);
+				//Set next state
+				eCaptureState = eBPM_CaptureAudio;
+			#else
+				SEND_EVENT(eReadWavFile);
+				temp = GET_AUDIO_BUFFER;
+				//Set next state
+				eCaptureState = eBPM_CaptureReadWav;
+			#endif
+			break;
+		
+		case eBPM_CaptureAudio:
+			//Check if samples have been captured
+			record_status = GET_INT_DATA(eRecordSamples);
+			if (record_status == eSuccess)
+			{
+				eCaptureState = eBPM_CaptureStartHandover;
+				STOP_TIMER(eCaptureTimer);
+			}
+			else if (record_status == eAudio_ErrorCapturingAudio)
+			{
+				eCaptureState = eBPM_CaptureError;
+			}
+			else if (capture_timeout == true)
+			{
+				eCaptureState = eBPM_CaptureError;
+				capture_timeout = false;
+			}
+			break;
+
+		case eBPM_CaptureReadWav:
+			//Check if wavfile has been read
+			if (GET_INT_DATA(eReadWavFile) == eSuccess)
+				eCaptureState = eBPM_CaptureStartHandover;
+			break;
+
+		case eBPM_CaptureStartHandover:
+			//Handover data to analyzer
+			if (bpm_info.bpm_analyze->get_state() == eReadyForData)
+			{
+				SEND_PSHORT_EVENT(eCopyBufferToAnalyzer, GET_AUDIO_BUFFER);
+				eCaptureState =eBPM_CaptureHandover;
+			}
+			break;
+
+		case eBPM_CaptureHandover:
+			//Check if handover has been finished. If yes, we can capture again.
+			if (bpm_info.bpm_analyze->get_state() == eDataCopyFinished
+	    		 && GET_INT_DATA(eCopyBufferToAnalyzer) == eSuccess)
+				eCaptureState = eBPM_CaptureStartAnalysis;
+			break;
+
+		case eBPM_CaptureStartAnalysis:
+			//This state is used to trigger the ANALYSIS state machine
+			//Just start from the beginning
+			eCaptureState = eBPM_CaptureStartAudio;
+			break;
+
+		case eBPM_CaptureError:
+			//This is not good, a problem during sound recording occured
+			//We detect this by timeout of recording timer
+			SEND_EVENT(eStopRecording);
+			eCaptureState = eBPM_CaptureErrorWait;
+			break;
+
+		case eBPM_CaptureErrorWait:
+			//Check if stopping was successful
+			stop_status = GET_INT_DATA(eStopRecording);
+			if (stop_status == eSuccess)
+				eCaptureState = eBPM_CaptureStartAudio;
+			break;
+
+		default:
+			//Here, we don't do anything
+			break;
+	}
+
+	//Analysis state machine
+	eError result_rms;
+	switch(eAnalyzeState)
+	{
+		case eBPM_AnalyzeReady:
+			//Check if CAPTURE state machine is in correct state. 
+			//If yes, we can start the analysis procedure.
+			if (eCaptureState == eBPM_CaptureStartAnalysis)
+			{
+				SEND_EVENT(eCheckRMSValue);
+				eAnalyzeState = eBPM_AnalyzeRMS;
+			}
+			break;
+
+		case eBPM_AnalyzeRMS:
+			//Check if rms value is above threshold
+			result_rms = (eError)GET_INT_DATA(eCheckRMSValue);
+			if (result_rms == eSuccess)
+			{
+				//RMS value is ok, continue to next state
+				eAnalyzeState = eBPM_AnalyzeStartBPM;
+				rms_value_ok = true;
+			}
+			else if (result_rms == eAnalyzer_RMSBelowThreshold || 
+			         result_rms == eAnalyzer_NotReadyYet)
+			{
+				//RMS value is too low or analyzer not ready, reset state machine
+				eAnalyzeState = eBPM_AnalyzeReady;
+				rms_value_ok = false;
+				//Reset analyzer
+				SEND_EVENT(eResetAnalyzer);
+			}
+			break;
+		
+		case eBPM_AnalyzeStartBPM:
+			//Start BPM analysis
+			SEND_EVENT(eGetBPMValue);
+			eAnalyzeState = eBPM_AnalyzeBPM;
+			break;
+
+		case eBPM_AnalyzeBPM:
+			//Get returned bpm value after calculation has finished
+			if (bpm_info.bpm_analyze->get_state() == eReadyForData)
+				eAnalyzeState = eBPM_AnalyzeReady;
+			break;
+		
+		default:
+			//Here, we don't do anything
+			break;
+	}
+
+	//Log the capture and analyze state if one of it has changed
+	if (param_list.get<bool>("debug functions") == true)
+	{
+		if ((eCaptureStateOld != eCaptureState) || (eAnalyzeStateOld != eAnalyzeState))
 		{
-			my_console.WriteToSplitConsole("Buffer not empty. Copying to analyzer. Counter3 = " + std::to_string(counter3), SPLIT_FC);
-			SEND_PSHORT_EVENT(eCopyBufferToAnalyzer, temp_buf);
-			counter3++;
-			copied_to_analyzer = true;
+			std::string s = "Capture State = " + std::to_string((int)eCaptureState);
+			s += "; Analyze State = " + std::to_string((int)eAnalyzeState);
+			my_console.WriteToSplitConsole(s, param_list.get<int>("split fc"));
 		}
 	}
 
-	//5. After analyzer has received data, perform analysis
-	if (GET_INT_DATA(eCopyBufferToAnalyzer) == eSuccess)
-	{
-		my_console.WriteToSplitConsole("Performing analysis.", SPLIT_FC);
-		SEND_DOUBLE_EVENT(eApplyFilter, 60.0);
-		SEND_EVENT(eMaximizeVolume);
-		SEND_EVENT(eGetBPMValue);
-		copied_to_analyzer = false;
-	}
+	//Update old states
+	eCaptureStateOld = eCaptureState;
+	eAnalyzeStateOld = eAnalyzeState;
 
-	//6. Get the bpm value from the register
+	//Read the bpm value from the register continuously
 	double bpm = GET_DBL_DATA(eGetBPMValue);
+
+	//Process value with bpm value handler
+	static double bpm_old = 0.0;
+	static double bpm_value = 0.0;
 	if (bpm != bpm_old)
 	{
-		my_console.WriteToSplitConsole("The BPM value was " + std::to_string(bpm), SPLIT_ERRORS);
+		bpm_value = value_handler.process_value(bpm);
 		bpm_old = bpm;
 	}
 
-	//7. Display the value using gpio writer
+	//Display the value using gpio writer
 	#ifndef _WIN32
-		gpio_info.gpio_writer->print_number((float)bpm);
-	#endif
+		if ((rms_value_ok == true) && (rms_timer_started == false))
+		{
+			START_TIMER(eRMSHystTimer);
+			rms_timer_started = true;
+		}
+		if (rms_value_ok == false)
+		{
+			rms_timer_started = false;
+			rms_hyst_ok = false;
+			RESET_TIMER(eRMSHystTimer);
+		}
+		if (rms_hyst_ok == true)
+			gpio_info.gpio_writer->print_number((float)bpm_value);
+		else
+		{		
+			//Display according sentence
+			int cycle = param_list.get<int>("man cycle");
+			eError finished = gpio_info.gpio_writer->print_string(sentences[number], cycle);
+			//Check if we have to generate a new random number
+			if (finished == eSuccess)
+				number = rand() % NUM_SENTENCES;
+		}
 
+		//gpio_info.gpio_writer->print_number((float)bpm_value);
+		//Timer interrupt function, not used yet
+		//gpio_info.gpio_writer->set_value(bpm_value);
+	#endif
+	
 	LOOP_OR_EXIT;
 }
 
-int State1_exit()
+int StateBPM_exit()
 {
+	//Clear all used registers - clear flag set to true
+	SEND_INT_DATA(eRecordSamples, 0, true);
+	SEND_INT_DATA(eReadWavFile, 0, true);
+	SEND_INT_DATA(eCopyBufferToAnalyzer, 0, true);
+	SEND_INT_DATA(eCheckRMSValue, 0, true);
+
+	//Stop the recording
+	SEND_EVENT(eStopRecording);
+
+	//Clear rms flag
+	rms_value_ok = false;
+
+	//Deactivate timer interrupt
+	//Not used yet
+	//gpio_info.gpio_writer->deactivate_timer_interrupt();
+
 	//We shut down all pins
 	//GPIO not used on WIN32
 	#ifndef _WIN32
@@ -227,31 +395,34 @@ int State1_exit()
 	#endif
 
 	RESET_TIMER(eSupervisionTimer);
+	RESET_TIMER(eCaptureTimer);
+	RESET_TIMER(eRMSHystTimer);
+	capture_timeout = false;
+	rms_timer_started = false;
+	rms_hyst_ok = false;
 
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("State BPM counter exit.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State BPM counter exit.", param_list.get<int>("split fc"));
 
 	NEXT_STATE;
 }
 
-//***********************
-//STATE 2 - CLICK COUNTER
-//***********************
+//***************************
+//STATE TIMER - CLICK COUNTER
+//***************************
 long long ms_old2 = 0;
 
-void State2_entry()
+void StateTimer_entry()
 {
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("State2_entry. Click counter.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State_entry. Click counter.", param_list.get<int>("split fc"));
 
 	ms_old2 = 0;
 
 	CURRENT_STATE;
 }
 
-FCStates State2_loop()
+FCStates StateTimer_loop()
 {
 	//Click counter
 	//We measure the time since application start
@@ -265,14 +436,15 @@ FCStates State2_loop()
 	#endif
 
 	//Write debug line
-	#ifdef DEBUG_FUNCTIONS
+	if (param_list.get<bool>("debug functions") == true)
+	{
 		if (ms - ms_old2 > 1000)
 		{
 			std::string s = "Timervalue : " + std::to_string((float)ms / 1000);
-			my_console.WriteToSplitConsole(s, SPLIT_FC);
+			my_console.WriteToSplitConsole(s, param_list.get<int>("split fc"));
 			ms_old2 = ms;
 		}
-	#endif
+	}
 	
 	LOOP_OR_EXIT;
 }
@@ -280,12 +452,12 @@ FCStates State2_loop()
 void timer1_elapsed()
 {
 	//Write some message
-	my_console.WriteToSplitConsole("The timer has elapsed!", SPLIT_FC);
+	my_console.WriteToSplitConsole("The timer has elapsed!", param_list.get<int>("split fc"));
 }
 
-//***********************
-//STATE 3 - CLOCK DISPLAY
-//***********************
+//***************************
+//STATE CLOCK - CLOCK DISPLAY
+//***************************
 int year=0;
 int month=0;
 int day=0;
@@ -300,11 +472,10 @@ int *d = &hour;
 int *e = &minute;
 int *f = &second;
 
-void State3_entry()
+void StateClock_entry()
 {
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("State3_entry. Clock.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State_entry. Clock.", param_list.get<int>("split fc"));
 
 	//Start timer
 	START_TIMER(eTestTimer1);
@@ -312,7 +483,7 @@ void State3_entry()
 	CURRENT_STATE;
 }
 
-FCStates State3_loop()
+FCStates StateClock_loop()
 {	
 	//Get the actual time
 	time_t now = time(NULL);
@@ -332,29 +503,24 @@ FCStates State3_loop()
 	LOOP_OR_EXIT;
 }
 
-//*********************
-//STATE 4 - MANUAL MODE
-//*********************
+//**************************
+//STATE MANUAL - MANUAL MODE
+//**************************
 std::string my_string = "";
 std::string str_old = "";
-long long ms_old4 = 0;
-int pos4 = 0;
 
-void State4_entry()
+void StateManual_entry()
 {
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("State4_entry. Manual mode.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State_entry. Manual mode.", param_list.get<int>("split fc"));
 
 	my_string = "";
 	str_old = my_string;
-	ms_old4 = 0;
-	pos4 = 0;
 
 	CURRENT_STATE;
 }
 
-FCStates State4_loop()
+FCStates StateManual_loop()
 {
 	//Read string to display from queue
 	my_string = GET_STR_DATA(eManMode);
@@ -365,46 +531,33 @@ FCStates State4_loop()
 	//Check if it has changed
 	if (str_old != my_string)
 	{
-		my_console.WriteToSplitConsole("Displaying: " + my_string, SPLIT_FC);
-		my_console.WriteToSplitConsole("Length: " + std::to_string(len), SPLIT_FC);
+		my_console.WriteToSplitConsole("Displaying: " + my_string, param_list.get<int>("split fc"));
+		my_console.WriteToSplitConsole("Length: " + std::to_string(len), param_list.get<int>("split fc"));
 		str_old = my_string;
-		pos4 = 0;
 	}
-
-	//We measure the time since application start
-	auto elapsed = std::chrono::high_resolution_clock::now() - appl_info.start;
-	long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-
-		if (ms - ms_old4 > 500)
-		{
-			pos4++;
-			if (pos4 > (len+4))
-				pos4 = 0;
-			ms_old4 = ms;
-		}
 	
 	//Display the string using GPIO writer
 	//GPIO not used on WIN32
 	#ifndef _WIN32
-		gpio_info.gpio_writer->print_string(my_string.c_str(), len, pos4);
+		int cycle = param_list.get<int>("man cycle");
+		gpio_info.gpio_writer->print_string(my_string.c_str(), cycle);
 	#endif
 
 	LOOP_OR_EXIT;
 }
 
-//***************************************
-//STATE 5 - QUIT STATE - EXIT APPLICATION
-//***************************************
-void State5_entry()
+//******************************************
+//STATE QUIT - QUIT STATE - EXIT APPLICATION
+//******************************************
+void StateQuit_entry()
 {
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("Quit state.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("Quit state.", param_list.get<int>("split fc"));
 
 	CURRENT_STATE;
 }
 
-FCStates State5_loop()
+FCStates StateQuit_loop()
 {
 	//Quit state - we display some info
 	std::string s = "quit";
@@ -426,11 +579,69 @@ int StateX_exit()
 		gpio_info.gpio_writer->reset_display(0);
 	#endif
 
-	#ifdef DEBUG_FUNCTIONS
-		my_console.WriteToSplitConsole("State exit.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State exit.", param_list.get<int>("split fc"));
 
 	NEXT_STATE;
+}
+
+//*************************
+//STATE TCP - MANUAL TCP MODE
+//*************************
+std::string my_string_tcp = "";
+std::string str_tcp_old = "";
+bool quit_TCP = false;
+
+void StateTCP_entry()
+{
+	if (param_list.get<bool>("debug functions") == true)
+		my_console.WriteToSplitConsole("State_entry. TCP mode.", param_list.get<int>("split fc"));
+
+	my_string_tcp = "";
+	str_tcp_old = my_string_tcp;
+	quit_TCP = false;
+
+	CURRENT_STATE;
+}
+
+FCStates StateTCP_loop()
+{
+	//Read string to display from queue
+	#ifndef _WIN32
+		appl_info.os_socket->get_buffer(my_string_tcp);
+	#else
+		my_string_tcp = "No Socket on Win!";
+	#endif
+
+	//Check if '0' has been entered - quit command
+	if ((my_string_tcp.compare(std::to_string(0)) == 0) && (quit_TCP == false))
+	{
+		//By default, we enter BPM state
+		SEND_EVENT(eGoToStateBPM);
+		quit_TCP = true;
+	}
+
+	if (quit_TCP == false)
+	{
+		//Check if it has changed
+		if ((str_tcp_old != my_string_tcp) && (my_string_tcp != ""))
+		{
+			//Retrieve lenght of string to display
+			int len = my_string_tcp.length();
+			my_console.WriteToSplitConsole("Displaying: " + my_string_tcp, param_list.get<int>("split fc"));
+			my_console.WriteToSplitConsole("Length: " + std::to_string(len), param_list.get<int>("split fc"));
+			str_tcp_old = my_string_tcp;
+		}
+	
+		//Display the string using GPIO writer
+		//GPIO not used on WIN32
+		#ifndef _WIN32
+			int cycle = param_list.get<int>("man cycle");
+			gpio_info.gpio_writer->print_string(str_tcp_old.c_str(), cycle);
+		#endif
+	}
+
+	LOOP_OR_EXIT;
 }
 
 #endif

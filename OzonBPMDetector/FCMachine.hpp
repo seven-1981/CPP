@@ -26,6 +26,9 @@ private:
 	//Loop function - auxiliary method for start_machine
 	eError machine_loop();
 
+	//Set thread priority
+	void set_thread_priority();
+
 public:
 	//Constructor
 	FCMachine();

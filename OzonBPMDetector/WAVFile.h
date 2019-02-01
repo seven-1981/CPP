@@ -1,7 +1,7 @@
 #ifndef _WAVFILE_H
 #define _WAVFILE_H
 
-#include "buffer.h"
+#include "buffer.hpp"
 #include <fstream>
 
 //Defines for .wav file creation
@@ -42,15 +42,15 @@ public:
 	int read_wav_file(std::ifstream& file);
 	int write_wav_file(std::ofstream& file);
 
-	WAVHeader* get_header_info() { return this->header; }
-	buffer<short>* get_buffer() { return this->data; }
+	WAVHeader* get_header_info() { return &this->header; }
+	buffer<short>* get_buffer() { return &this->data; }
 	void set_buffer(buffer<short>& data);
 
-	unsigned int get_size() { return this->header->data_size / this->header->frame_size; }
+	unsigned int get_size() { return this->header.data_size / this->header.frame_size; }
 
 private:
-	WAVHeader * header;
-	buffer<short>* data;
+	WAVHeader header;
+	buffer<short> data;
 
 	template <typename Word>
 	Word read_word(std::istream& in_stream, bool little_endian, unsigned int size = sizeof(Word));

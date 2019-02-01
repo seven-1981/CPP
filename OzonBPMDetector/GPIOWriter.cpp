@@ -2,15 +2,21 @@
 #ifndef _WIN32
 
 #include <iostream>
+#include <chrono>
 #include <math.h>
 #include <wiringPi.h>
 #include <unistd.h>
+#include <signal.h>
 #include "GPIOWriter.hpp"
 #include "bpm_globals.hpp"
+#include "bpm_param.hpp"
 #include "SplitConsole.hpp"
+#include "TIMINT.hpp"
 
 //Extern split console instance
 extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 GPIOWriter::GPIOWriter()
 {
@@ -42,9 +48,8 @@ GPIOWriter::~GPIOWriter()
 eError GPIOWriter::init_writer()
 {
 	//Write debug line
-	#ifdef DEBUG_WRITER
+	if (param_list.get<bool>("debug writer") == true)
 		std::cout << "GPIO Writer Class: Created writer " << std::endl;
-	#endif
 
 	//Declare return value
 	eError retval = eSuccess;
@@ -87,6 +92,17 @@ eError GPIOWriter::init_writer()
 	else
 		this->is_initialized = true;
 
+	//Timer interrupt
+	this->interrupt_activated = false;
+	this->value = 0.0;
+	this->sequence = 0;
+	//Configure and start timer
+	TIMINT::set_callback(this->se, &GPIOWriter::interrupt_callback_wrapper, this);
+	//TIMINT::start_timer(&this->display_timer, this->se, 0, DISPLAY_CYCLE);
+
+	//Save starting time point for time measurement
+	this->start = std::chrono::high_resolution_clock::now();
+
 	return retval;		
 }
 
@@ -118,6 +134,91 @@ SevenSegNum GPIOWriter::num_to_seg(float number)
 	return result;
 }
 
+eError GPIOWriter::print_number(float number, unsigned int sequence)
+{
+	//Function shall be executed periodically by timer interrupt
+	//One cycle prints out one 4 digit number with one decimal dot
+
+	//Create number	
+	SevenSegNum num = num_to_seg(number);
+
+	unsigned int num_seq = 16;
+	unsigned int seq = sequence % num_seq;
+	
+	//Depending on the sequence number, we set or reset the pins
+	switch (seq)
+	{
+		//Hundreds
+		case 0:
+			this->adr_1->setval_gpio(true);
+			set_segments(num.hundreds, 16, false);
+			set_dot(num.number, 1);
+			break;
+		case 1:
+			//Wait
+			break;
+		case 2:
+			reset_display(2);
+			reset_display(1);
+			break;
+		case 3: 
+			//Wait
+			break;
+
+		//Tens
+		case 4:
+			this->adr_2->setval_gpio(true);
+			set_segments(num.tens, 16, false);
+			set_dot(num.number, 2);
+			break;
+		case 5:
+			//Wait
+			break;
+		case 6:
+			reset_display(2);
+			reset_display(1);
+			break;
+		case 7: 
+			//Wait
+			break;
+
+		//Ones
+		case 8:
+			this->adr_3->setval_gpio(true);
+			set_segments(num.ones, 16, false);
+			set_dot(num.number, 3);
+			break;
+		case 9:
+			//Wait
+			break;
+		case 10:
+			reset_display(2);
+			reset_display(1);
+			break;
+		case 11: 
+			//Wait
+			break;
+
+		//Tenths
+		case 12:
+			this->adr_4->setval_gpio(true);
+			set_segments(num.tenths, 16, false);
+			break;
+		case 13:
+			//Wait
+			break;
+		case 14:
+			reset_display(2);
+			reset_display(1);
+			break;
+		case 15: 
+			//Wait
+			break;
+	}
+
+	return eSuccess;
+}
+
 eError GPIOWriter::print_number(float number)
 {
 	//Function shall be executed periodically
@@ -131,12 +232,13 @@ eError GPIOWriter::print_number(float number)
 	//Create number	
 	SevenSegNum num = num_to_seg(number);
 
-	#ifdef DEBUG_WRITER
-		std::cout << "Number: " << number << std::endl;
-		std::cout << "GPIO Writer Class: Found digits ";
-		std::cout << num.hundreds << "_" << num.tens << "_";
-		std::cout << num.ones << "_" << num.tenths << std::endl;
-	#endif
+	if (param_list.get<bool>("debug writer") == true)
+	{
+		my_console.WriteToSplitConsole("Number: " + std::to_string(number), param_list.get<int>("split main"));
+		//std::cout << "GPIO Writer Class: Found digits ";
+		//std::cout << num.hundreds << "_" << num.tens << "_";
+		//std::cout << num.ones << "_" << num.tenths << std::endl;
+	}
 	
 	//Depending on the control mode, the timing is different
 	if (this->control_mode == 0)
@@ -172,7 +274,7 @@ eError GPIOWriter::print_number(float number)
 		//Set ones
 		this->adr_3->setval_gpio(true);
 		set_segments(num.ones, 16, false);
-		set_dot(num.number, 1);
+		set_dot(num.number, 3);
 		usleep(HOLD_ADDR_SEG);
 		reset_display(2);
 		reset_display(1);
@@ -243,16 +345,17 @@ eError GPIOWriter::print_number(float number)
 void GPIOWriter::set_segments(int number, int offset, bool text)
 {
 	//Write debug lines
-	#ifdef DEBUG_WRITER
-		std::cout << "GPIO Writer Class: Segments of " << number+offset << "  ";
-		std::cout << (aChars[number+offset] & 0x01) << "_";
-		std::cout << (aChars[number+offset] & 0x02) << "_";
-		std::cout << (aChars[number+offset] & 0x04) << "_";
-		std::cout << (aChars[number+offset] & 0x08) << "_";
-		std::cout << (aChars[number+offset] & 0x10) << "_";
-		std::cout << (aChars[number+offset] & 0x20) << "_";
-		std::cout << (aChars[number+offset] & 0x40) << std::endl;
-	#endif
+	if (param_list.get<bool>("debug writer") == true)
+	{
+		//std::cout << "GPIO Writer Class: Segments of " << number+offset << "  ";
+		//std::cout << (aChars[number+offset] & 0x01) << "_";
+		//std::cout << (aChars[number+offset] & 0x02) << "_";
+		//std::cout << (aChars[number+offset] & 0x04) << "_";
+		//std::cout << (aChars[number+offset] & 0x08) << "_";
+		//std::cout << (aChars[number+offset] & 0x10) << "_";
+		//std::cout << (aChars[number+offset] & 0x20) << "_";
+		//std::cout << (aChars[number+offset] & 0x40) << std::endl;
+	}
 
 	//We check the digit and select the pins accordingly
 	this->seg_1->setval_gpio((aChars[number+offset] & 0x01) == 0x01);
@@ -355,9 +458,8 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 		else
 			disp[i] = ' ';
 
-	#ifdef DEBUG_WRITER
-		std::cout << "GPIO Writer Class: Printing " << text << std::endl;
-	#endif
+	if (param_list.get<bool>("debug writer") == true)
+		my_console.WriteToSplitConsole("GPIO Writer Class: Printing " + std::string(text), param_list.get<int>("split main"));
 
 	//Select chars to display
 	char first = disp[pos+0];
@@ -385,7 +487,6 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 
 		//We pause for a short time
 		usleep(PAUSE_ADDR_SEG);
-
 
 		//Set second
 		this->adr_2->setval_gpio(true);
@@ -456,6 +557,45 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 		reset_display(2);
 		usleep(PAUSE_ADDR_SEG);
 	}
+
+	return retval;
+}
+
+eError GPIOWriter::print_string(std::string text, unsigned int cycle)
+{
+	//Declare return value
+	eError retval = eSuccess;
+
+	//We measure the time since application start
+	auto elapsed = std::chrono::high_resolution_clock::now() - this->start;
+	long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+	static long long ms_old = ms;
+
+	//Retrieve lenght of string to display
+	int len = text.length();
+
+	//Position
+	static int pos = 0;
+	//Cycle finished flag
+	bool cycle_finished = false;
+
+	if (ms - ms_old > cycle)
+	{
+		pos++;
+		if (pos > (len + 4))
+		{
+			//Cycle has finished, reset pos to zero
+			cycle_finished = true;
+			pos = 0;
+		}
+		ms_old = ms;
+	}
+	
+	retval = this->print_string(text.c_str(), len, pos);
+
+	//Check return value
+	if ((cycle_finished == false) && (retval == eSuccess))	
+		retval = eGPIOWriterCycleNotFinished;
 
 	return retval;
 }
@@ -550,9 +690,8 @@ eError GPIOWriter::set_mode(int mode)
 	//Re-set is done in opposite order
 
 	//Write debug line
-	#ifdef DEBUG_WRITER
-		std::cout << "GPIO Writer Class: Set control mode = " << mode << std::endl;
-	#endif
+	if (param_list.get<bool>("debug writer") == true)
+		my_console.WriteToSplitConsole("GPIO Writer Class: Set control mode = " + std::to_string(mode), param_list.get<int>("split main"));
 
 	switch (mode)
 	{
@@ -577,13 +716,14 @@ eError GPIOWriter::set_timing(SevenSegTiming timing)
 	//Set the timing of the writer class
 
 	//Write debug line
-	#ifdef DEBUG_WRITER
-		std::cout << "GPIO Writer Class: Set timing... " << std::endl;
-		std::cout << "GPIO Writer Class: HOLD_ADDR_SEG " << timing.hold_addr_seg << std::endl;
-		std::cout << "GPIO Writer Class: PAUSE_ADDR_SEG " << timing.pause_addr_seg << std::endl;
-		std::cout << "GPIO Writer Class: HOLD_SEG_ADDR " << timing.hold_seg_addr << std::endl;
-		std::cout << "GPIO Writer Class: PAUSE_SEG_ADDR " << timing.pause_seg_addr << std::endl;
-	#endif
+	if (param_list.get<bool>("debug writer") == true)
+	{
+		my_console.WriteToSplitConsole("GPIO Writer Class: Set timing... ", param_list.get<int>("split main"));
+		//std::cout << "GPIO Writer Class: HOLD_ADDR_SEG " << timing.hold_addr_seg << std::endl;
+		//std::cout << "GPIO Writer Class: PAUSE_ADDR_SEG " << timing.pause_addr_seg << std::endl;
+		//std::cout << "GPIO Writer Class: HOLD_SEG_ADDR " << timing.hold_seg_addr << std::endl;
+		//std::cout << "GPIO Writer Class: PAUSE_SEG_ADDR " << timing.pause_seg_addr << std::endl;
+	}
 
 	if ((timing.hold_addr_seg < 0) 
          || (timing.pause_addr_seg < 0) 
@@ -598,6 +738,45 @@ eError GPIOWriter::set_timing(SevenSegTiming timing)
 	}
 
 	return retval;
+}
+
+void GPIOWriter::interrupt_callback(sigval_t val)
+{
+	GPIOWriter* instance = (GPIOWriter*)val.sival_ptr;
+
+	if (instance->interrupt_activated == false)
+		return;
+	else
+	{
+		instance->print_number(instance->value, this->sequence);
+		this->sequence++;
+		if (this->sequence >= 16)
+			this->sequence = 0;
+	}
+}
+
+void GPIOWriter::interrupt_callback_wrapper(sigval_t val)
+{
+	GPIOWriter* obj = (GPIOWriter*)val.sival_ptr;
+	obj->interrupt_callback(val);
+}
+
+eError GPIOWriter::activate_timer_interrupt()
+{
+	this->interrupt_activated = true;
+	return eSuccess;
+}
+
+eError GPIOWriter::deactivate_timer_interrupt()
+{
+	this->interrupt_activated = false;
+	return eSuccess;
+}
+
+eError GPIOWriter::set_value(double value)
+{
+	this->value = value;
+	return eSuccess;
 }
 	
 #endif

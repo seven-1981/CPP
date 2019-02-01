@@ -1,10 +1,13 @@
 #include "FCState.hpp"
 #include "SplitConsole.hpp"
+#include "bpm_param.hpp"
 #include <iostream>
 #include <thread>
 
 //Extern split console instance
 extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 //Static instance ID counter
 int FCState::count;
@@ -24,18 +27,16 @@ FCState::FCState()
 	this->is_initialized = false;
 
 	//Write debug line
-	#ifdef DEBUG_FC_STATE
-		my_console.WriteToSplitConsole("Initialized FCState " + std::to_string(my_id), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug state") == true)
+		my_console.WriteToSplitConsole("Initialized FCState " + std::to_string(my_id), param_list.get<int>("split fc"));
 
 }
 
 //Destructor
 FCState::~FCState()
 {
-	#ifdef DEBUG_FC_STATE
-		my_console.WriteToSplitConsole("Removed FCState " + std::to_string(my_id), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug state") == true)
+		my_console.WriteToSplitConsole("Removed FCState " + std::to_string(my_id), param_list.get<int>("split fc"));
 }
 
 //Bind methods for function pointers
@@ -44,9 +45,8 @@ eError FCState::bind_entr(void(*function)())
 	//Check for null pointer
 	if (function == nullptr)
 	{
-		#ifdef DEBUG_FC_STATE
-			my_console.WriteToSplitConsole("FCStateError_BindFunctionNullPtr " + std::to_string(my_id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug state") == true)
+			my_console.WriteToSplitConsole("FCStateError_BindFunctionNullPtr " + std::to_string(my_id), param_list.get<int>("split errors"));
 		return eFCStateError_BindFunctionNullPtr;
 	}
 
@@ -55,9 +55,8 @@ eError FCState::bind_entr(void(*function)())
 	set_init();
 
 	//Write debug line
-	#ifdef DEBUG_FC_STATE
-		my_console.WriteToSplitConsole("Binding entry function done for " + std::to_string(my_id), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug state") == true)
+		my_console.WriteToSplitConsole("Binding entry function done for " + std::to_string(my_id), param_list.get<int>("split fc"));
 
 	return eSuccess;
 }
@@ -67,9 +66,9 @@ eError FCState::bind_loop(FCStates(*function)())
 	//Check for null pointer
 	if (function == nullptr)
 	{
-		#ifdef DEBUG_FC_STATE
-			my_console.WriteToSplitConsole("FCStateError_BindFunctionNullPtr " + std::to_string(my_id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug state") == true)
+			my_console.WriteToSplitConsole("FCStateError_BindFunctionNullPtr " + std::to_string(my_id), param_list.get<int>("split errors"));
+
 		return eFCStateError_BindFunctionNullPtr;
 	}
 
@@ -78,9 +77,8 @@ eError FCState::bind_loop(FCStates(*function)())
 	set_init();
 
 	//Write debug line
-	#ifdef DEBUG_FC_STATE
-		my_console.WriteToSplitConsole("Binding loop function done for " + std::to_string(my_id), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug state") == true)
+		my_console.WriteToSplitConsole("Binding loop function done for " + std::to_string(my_id), param_list.get<int>("split fc"));
 
 	return eSuccess;
 }
@@ -90,9 +88,9 @@ eError FCState::bind_exit(int(*function)())
 	//Check for null pointer
 	if (function == nullptr)
 	{
-		#ifdef DEBUG_FC_STATE
-			my_console.WriteToSplitConsole("FCStateError_BindFunctionNullPtr " + std::to_string(my_id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug state") == true)
+			my_console.WriteToSplitConsole("FCStateError_BindFunctionNullPtr " + std::to_string(my_id), param_list.get<int>("split errors"));
+
 		return eFCStateError_BindFunctionNullPtr;
 	}
 
@@ -101,9 +99,8 @@ eError FCState::bind_exit(int(*function)())
 	set_init();
 
 	//Write debug line
-	#ifdef DEBUG_FC_STATE
-		my_console.WriteToSplitConsole("Binding exit function done for " + std::to_string(my_id), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug state") == true)
+		my_console.WriteToSplitConsole("Binding exit function done for " + std::to_string(my_id), param_list.get<int>("split fc"));
 
 	return eSuccess;
 }
@@ -116,9 +113,9 @@ eError FCState::execute()
 	//The others aren't mandatory
 	if (this->is_initialized == false)
 	{
-		#ifdef DEBUG_FC_STATE
-			my_console.WriteToSplitConsole("FCStateError_FCStateNotInitialized " + std::to_string(my_id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug state") == true)
+			my_console.WriteToSplitConsole("FCStateError_FCStateNotInitialized " + std::to_string(my_id), param_list.get<int>("split errors"));
+
 		return eFCStateError_FCStateNotInitialized;
 	}
 
@@ -126,30 +123,26 @@ eError FCState::execute()
 	switch (this->state)
 	{
 		case StateEntr:
-			#ifdef DEBUG_FC_STATE
-				my_console.WriteToSplitConsole("Executing entry function Id = " + std::to_string(my_id), SPLIT_FC);
-			#endif
+			if (param_list.get<bool>("debug state") == true)
+				my_console.WriteToSplitConsole("Executing entry function Id = " + std::to_string(my_id), param_list.get<int>("split fc"));
 			entry_function();
 			this->state = StateLoop;
 			break;
 		case StateLoop:
-			#ifdef DEBUG_FC_STATE
-				my_console.WriteToSplitConsole("Executing loop function Id = " + std::to_string(my_id), SPLIT_FC);
-			#endif
+			if (param_list.get<bool>("debug state") == true)
+				my_console.WriteToSplitConsole("Executing loop function Id = " + std::to_string(my_id), param_list.get<int>("split fc"));
 			this->state = loop_function();
 			break;
 		case StateExit:
-			#ifdef DEBUG_FC_STATE
-				my_console.WriteToSplitConsole("Executing exit function Id = " + std::to_string(my_id), SPLIT_FC);
-			#endif
+			if (param_list.get<bool>("debug state") == true)
+				my_console.WriteToSplitConsole("Executing exit function Id = " + std::to_string(my_id), param_list.get<int>("split fc"));
 			this->next_id = exit_function();
 			//Here, we have to check if the next state is
 			//defined (not -1)
 			if (this->next_id == -1)
 			{
-				#ifdef DEBUG_FC_STATE
-					my_console.WriteToSplitConsole("FCStateError_FCStateNextIdNotDefined " + std::to_string(my_id), SPLIT_FC);
-				#endif
+				if (param_list.get<bool>("debug state") == true)
+					my_console.WriteToSplitConsole("FCStateError_FCStateNextIdNotDefined " + std::to_string(my_id), param_list.get<int>("split errors"));
 				return eFCStateError_FCStateNextIdNotDefined;
 			}
 			this->state = StateEntr;
@@ -171,9 +164,8 @@ eError FCState::set_next_id(int id)
 	//We check the ID
 	if (id < -1)
 	{
-		#ifdef DEBUG_FC_STATE
-			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(my_id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug state") == true)
+			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(my_id), param_list.get<int>("split errors"));
 		return eFCStateError_InvalidIDNumber;
 	}
 

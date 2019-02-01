@@ -3,12 +3,14 @@
 
 #include "GPIOPin.hpp"
 #include "bpm_globals.hpp"
+#include "bpm_param.hpp"
 #include "SplitConsole.hpp"
 #include <wiringPi.h>
-#include <iostream>
 
 //Extern split console instance
 extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 bool GPIOPin::is_initialized = false;
 
@@ -17,9 +19,9 @@ GPIOPin::GPIOPin()
 	//Default constructor
 	this->gpio_number = 2;
 	//Write debug line
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: Creating pin " << gpio_number << std::endl;
-	#endif
+	if (param_list.get<bool>("debug gpio") == true)
+		my_console.WriteToSplitConsole("GPIO Pin Class: Creating pin " + std::to_string(gpio_number), param_list.get<int>("split main"));
+
 	this->direction = eOUT;
 	setdir_gpio(eOUT);
 
@@ -27,10 +29,11 @@ GPIOPin::GPIOPin()
 	setval_gpio(false);
 
 	//Write debug line
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: Direction = " << direction << std::endl;
-		std::cout << "GPIO Pin Class: Pin value = " << pin_value << std::endl;
-	#endif
+	if (param_list.get<bool>("debug gpio") == true)
+	{
+		my_console.WriteToSplitConsole("GPIO Pin Class: Direction = " + std::to_string(direction), param_list.get<int>("split main"));
+		my_console.WriteToSplitConsole("GPIO Pin Class: Pin value = " + std::to_string(pin_value), param_list.get<int>("split main"));
+	}
 }
 
 GPIOPin::GPIOPin(int pin_number, eDirection direction, bool value)
@@ -38,9 +41,9 @@ GPIOPin::GPIOPin(int pin_number, eDirection direction, bool value)
 	//Constructor
 	this->gpio_number = pin_number;
 	//Write debug line
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: Creating pin " << pin_number << std::endl;
-	#endif
+	if (param_list.get<bool>("debug gpio") == true)
+		my_console.WriteToSplitConsole("GPIO Pin Class: Creating pin " + std::to_string(pin_number), param_list.get<int>("split main"));
+
 	this->direction = direction;
 	setdir_gpio(direction);
 
@@ -57,10 +60,11 @@ GPIOPin::GPIOPin(int pin_number, eDirection direction, bool value)
 	}
 
 	//Write debug line
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: Direction = " << direction << std::endl;
-		std::cout << "GPIO Pin Class: Pin value = " << pin_value << std::endl;
-	#endif
+	if (param_list.get<bool>("debug gpio") == true)
+	{
+		my_console.WriteToSplitConsole("GPIO Pin Class: Direction = " + std::to_string(direction), param_list.get<int>("split main"));
+		my_console.WriteToSplitConsole("GPIO Pin Class: Pin value = " + std::to_string(pin_value), param_list.get<int>("split main"));
+	}
 }
 
 int GPIOPin::init_gpio()
@@ -73,9 +77,8 @@ int GPIOPin::init_gpio()
 		GPIOPin::is_initialized = false;
 
 	//Write debug line
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: wiringPiSetup = " << result << std::endl;
-	#endif
+	if (param_list.get<bool>("debug gpio") == true)
+		my_console.WriteToSplitConsole("GPIO Pin Class: wiringPiSetup = " + std::to_string(result), param_list.get<int>("split main"));
 	
 	return result;
 }
@@ -155,11 +158,12 @@ eError GPIOPin::setdir_gpio(eDirection direction)
 	else
 		pinMode(wiringPi_number, INPUT);
 
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: Set direction on pin " << wiringPi_number;
-		std::cout << " equals gpio " << this->gpio_number << std::endl;
-		std::cout << "GPIO Pin Class: Direction = " << direction << std::endl;
-	#endif
+	if (param_list.get<bool>("debug gpio") == true)
+	{
+		my_console.WriteToSplitConsole("GPIO Pin Class: Set direction on pin " + std::to_string(wiringPi_number), param_list.get<int>("split main"));
+		my_console.WriteToSplitConsole("GPIO Pin Class: equals gpio " + std::to_string(this->gpio_number), param_list.get<int>("split main"));
+		my_console.WriteToSplitConsole("GPIO Pin Class: Direction = " + std::to_string(direction), param_list.get<int>("split main"));
+	}
 
 	return retval;
 }
@@ -195,11 +199,12 @@ eError GPIOPin::setval_gpio(bool value)
 	else
 		digitalWrite(wiringPi_number, LOW);
 
-	#ifdef DEBUG_GPIO
-		std::cout << "GPIO Pin Class: Set value on pin " << wiringPi_number;
-		std::cout << " equals gpio " << this->gpio_number << std::endl;
-		std::cout << "GPIO Pin Class: Value = " << value << std::endl;
-	#endif	
+	if (param_list.get<bool>("debug gpio") == true)
+	{
+		my_console.WriteToSplitConsole("GPIO Pin Class: Set value on pin " + std::to_string(wiringPi_number), param_list.get<int>("split main"));
+		my_console.WriteToSplitConsole("GPIO Pin Class: equals gpio " + std::to_string(this->gpio_number), param_list.get<int>("split main"));
+		my_console.WriteToSplitConsole("GPIO Pin Class: Value = " + std::to_string(value), param_list.get<int>("split main"));
+	}
 
 	return retval;
 }
@@ -224,7 +229,7 @@ bool GPIOPin::getval_gpio()
 		return false;
 
 	//Return the value at the pin, HIGH or LOW
-	return (digitalRead(wiringPi_number == HIGH));
+	return (digitalRead(wiringPi_number) == HIGH);
 }
 
 eError GPIOPin::check_init()

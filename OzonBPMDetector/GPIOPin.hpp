@@ -30,6 +30,7 @@ public:
 	eError setdir_gpio(eDirection direction);
 	eError setval_gpio(bool value);
 	bool getval_gpio();
+	eError check_init();
 
 private:
 	//Private members
@@ -42,7 +43,6 @@ private:
 
 	//Private member functions
 	//used by GPIOPin class internally
-	eError check_init();
 	eError check_pin(int number);
 	eError check_dir();
 };

@@ -1,6 +1,7 @@
 #include "FCQueue.hpp"
 #include "FCEvent.hpp"
 #include "SplitConsole.hpp"
+#include "bpm_param.hpp"
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -11,6 +12,8 @@
 
 //Extern split console instance
 extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 FCQueue::FCQueue()
 {
@@ -56,18 +59,16 @@ FCQueue::FCQueue()
 	this->start = std::chrono::high_resolution_clock::now();
 
 	//Write debug line
-	#ifdef DEBUG_FC_QUEUE
-		my_console.WriteToSplitConsole("Created and initialized FC queue.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug queue") == true)
+		my_console.WriteToSplitConsole("Created and initialized FC queue.", param_list.get<int>("split main"));
 }
 
 FCQueue::~FCQueue()
 {
 	//Destructor
 	//Write debug line
-	#ifdef DEBUG_FC_QUEUE
-		my_console.WriteToSplitConsole("Removed FC queue.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug queue") == true)
+		my_console.WriteToSplitConsole("Removed FC queue.", param_list.get<int>("split main"));
 }
 
 eError FCQueue::push(FCEvent e)
@@ -75,22 +76,21 @@ eError FCQueue::push(FCEvent e)
 	//We check if queue is already full
 	if (this->is_full == true)
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_QueueIsFull", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_QueueIsFull", param_list.get<int>("split errors"));
+
 		return eFCQueueError_QueueIsFull;
 	}
 
 	//Lock mutex - lock causes wait if already locked
-	this->mtx.lock();
+	this->mtx_queue.lock();
 
 	//We push the event into the queue
 	this->queue[this->write_index] = e;
 
 	//Write debug line
-	#ifdef DEBUG_FC_QUEUE
-		my_console.WriteToSplitConsole("Pushed event into queue, ID = " + std::to_string(e.ID), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug queue") == true)
+		my_console.WriteToSplitConsole("Pushed event into queue, ID = " + std::to_string(e.ID), param_list.get<int>("split main"));
 
 	//Reset the empty flag
 	this->is_empty = false;
@@ -109,13 +109,12 @@ eError FCQueue::push(FCEvent e)
 		this->is_full = true;
 
 		//Write debug line
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("Warning! Queue is full!", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("Warning! Queue is full!", param_list.get<int>("split errors"));
 	}
 
 	//Release mutex
-	this->mtx.unlock();
+	this->mtx_queue.unlock();
 
 	return eSuccess;
 }
@@ -128,9 +127,8 @@ FCEvent FCQueue::pop()
 	//We check if the queue is empty
 	if (this->is_empty == true)
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_QueueIsEmpty", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_QueueIsEmpty", param_list.get<int>("split errors"));
 		
 		//We return error since there's nothing to pop
 		retval.success = false;
@@ -138,14 +136,13 @@ FCEvent FCQueue::pop()
 	}
 
 	//Lock mutex - lock causes wait if already locked
-	this->mtx.lock();
+	this->mtx_queue.lock();
 
 	//We generate the return value
 	retval = this->queue[this->read_index];
 
-	#ifdef DEBUG_FC_QUEUE
-		my_console.WriteToSplitConsole("Popped event from queue, ID = " + std::to_string(retval.ID), SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug queue") == true)
+		my_console.WriteToSplitConsole("Popped event from queue, ID = " + std::to_string(retval.ID), param_list.get<int>("split main"));
 
 	//Reset the full flag
 	this->is_full = false;
@@ -164,13 +161,12 @@ FCEvent FCQueue::pop()
 		this->is_empty = true;
 
 		//Write debug line
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("Warning! Queue is empty!", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("Warning! Queue is empty!", param_list.get<int>("split errors"));
 	}
 
 	//Release mutex
-	this->mtx.unlock();
+	this->mtx_queue.unlock();
 
 	//Return the event
 	return retval;
@@ -191,9 +187,8 @@ int FCQueue::get_reg(int id)
 	//We check if id is valid
 	if (id < 0 || id >= (eLastTimer - 1))
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
 
 		//We just return 0, if the ID is not defined
 		return 0;
@@ -213,9 +208,8 @@ std::string FCQueue::get_sreg(int id)
 	//We check if id is valid
 	if (id < 0 || id >= (eLastTimer - 1))
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
 
 		//We just return empty string, if the ID is not defined
 		return "";
@@ -235,9 +229,8 @@ double FCQueue::get_dreg(int id)
 	//We check if id is valid
 	if (id < 0 || id >= (eLastTimer - 1))
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
 
 		//We just return 0.0, if the ID is not defined
 		return 0.0;
@@ -257,14 +250,14 @@ eError FCQueue::set_reg(int id, int value, bool clear)
 	//We check if id is valid
 	if (id < 0 || id >= (eLastTimer - 1))
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
 	//Lock mutex
-	this->mtx.lock();
+	this->mtx_queue.lock();
 
 	//Set the desired register
 	this->reg[id] = value;
@@ -273,7 +266,7 @@ eError FCQueue::set_reg(int id, int value, bool clear)
 	this->clear[id] = clear;
 
 	//Unlock mutex
-	this->mtx.unlock();
+	this->mtx_queue.unlock();
 
 	return eSuccess;
 }
@@ -283,14 +276,14 @@ eError FCQueue::set_sreg(int id, std::string value, bool clear)
 	//We check if id is valid
 	if (id < 0 || id >= (eLastTimer - 1))
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
 	//Lock mutex
-	this->mtx.lock();
+	this->mtx_queue.lock();
 
 	//Set the desired register
 	this->sreg[id] = value;
@@ -299,7 +292,7 @@ eError FCQueue::set_sreg(int id, std::string value, bool clear)
 	this->clear[id] = clear;
 
 	//Unlock mutex
-	this->mtx.unlock();
+	this->mtx_queue.unlock();
 
 	return eSuccess;
 }
@@ -309,14 +302,14 @@ eError FCQueue::set_dreg(int id, double value, bool clear)
 	//We check if id is valid
 	if (id < 0 || id >= (eLastTimer - 1))
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
 	//Lock mutex
-	this->mtx.lock();
+	this->mtx_queue.lock();
 
 	//Set the desired register
 	this->dreg[id] = value;
@@ -325,7 +318,7 @@ eError FCQueue::set_dreg(int id, double value, bool clear)
 	this->clear[id] = clear;
 
 	//Unlock mutex
-	this->mtx.unlock();
+	this->mtx_queue.unlock();
 
 	return eSuccess;
 }
@@ -333,17 +326,16 @@ eError FCQueue::set_dreg(int id, double value, bool clear)
 void FCQueue::queue_stop()
 {
 	//Lock the mutex
-	this->mtx.lock();
+	this->mtx_queue.lock();
 
-	#ifdef DEBUG_FC_QUEUE
-		my_console.WriteToSplitConsole("Stopping queue!", SPLIT_FC);
-	#endif	
+	if (param_list.get<bool>("debug queue") == true)
+		my_console.WriteToSplitConsole("Stopping queue!", param_list.get<int>("split main"));	
 
 	//Set the stop flag to true
 	this->stop = true;
 
 	//Unlock the mutex
-	this->mtx.unlock();
+	this->mtx_queue.unlock();
 }
 
 eError FCQueue::queue_loop()
@@ -357,15 +349,6 @@ eError FCQueue::queue_loop()
 	//before stopping, but this should not be necessary
 	while (this->stop == false && retval == eSuccess)
 	{
-		//We want to handle the timers/interrupts first, because if the while loop encounters an error,
-		//we use the continue statement, which would skip the execution of these interrupt routines
-
-		//Handle the timers
-		this->handle_timers();
-
-		//Handle software interrupts
-		this->handle_SIR();
-
 		//Check if there's something in the queue
 		if (this->check_empty() != true)
 		{
@@ -385,10 +368,16 @@ eError FCQueue::queue_loop()
 			//Evaluate event info
 			//Determine the type of function to be executed
 			retval = eval_obj(eval_event);
+
+			if (param_list.get<bool>("debug queue") == true)
+			{
+				int disp_index = this->write_index - this->read_index;
+				if (disp_index < 0)
+					disp_index = FC_QUEUE_SIZE + disp_index;
+				my_console.WriteToSplitConsole("# of queue elements: " + std::to_string(disp_index), param_list.get<int>("split main"));
 			
-			#ifdef DEBUG_FC_QUEUE
 				std::this_thread::sleep_for(std::chrono::milliseconds(PAUSE_WAIT));
-			#endif
+			}
 		}
 
 		//Event executed - toggle supervision bit
@@ -396,6 +385,29 @@ eError FCQueue::queue_loop()
 			this->toggle = true;
 		else
 			this->toggle = false;
+
+		//Wait for a short amount of time - not necessary to have lightspeed queue handling
+		std::this_thread::sleep_for(std::chrono::milliseconds(FC_QUEUE_WAIT_TIME_MS));
+	}
+
+	//If this loop ends, it means that there went something wrong inside or a stop command was issued
+	//This way, the executing function can verify, if it was an exceptional termination or a normal shutdown
+	return retval;
+}
+
+eError FCQueue::SIR_loop()
+{
+	//Declare return value
+	eError retval = eSuccess;
+
+	//Operating system SIR (software interrupt routine) loop
+	while (this->stop == false && retval == eSuccess)
+	{
+		//Handle the timers
+		this->handle_timers();
+
+		//Handle software interrupts
+		this->handle_SIR();
 
 		//Wait for a short amount of time - not necessary to have lightspeed queue handling
 		std::this_thread::sleep_for(std::chrono::milliseconds(FC_QUEUE_WAIT_TIME_MS));
@@ -417,14 +429,25 @@ std::future<eError> FCQueue::start_queue()
 	return result;
 }
 
+std::future<eError> FCQueue::start_SIR()
+{
+	//It is not possible to return values from thread functions
+	//Therefore, we use a std::async. This basically launches a thread for us and provides
+	//a std::future object. After termination of std::async, the future object holds the return value
+	//The return value is of type 'eError'
+	//We can read the return value in main using the member function get() (of the future object)
+	std::future<eError> result = std::async(std::launch::async, &FCQueue::SIR_loop, this);
+	return result;
+}
+
 eError FCQueue::config_timer(int id, FCTimer timer)
 {
 	//We check if id is valid
 	if (id < eLastEvent || id >= eLastTimer)
 	{
-		//#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		//#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
@@ -433,7 +456,7 @@ eError FCQueue::config_timer(int id, FCTimer timer)
 		return eFCQueueError_FCEventNotInitialized;
 
 	//Lock mutex
-	this->mtx.lock();
+	this->mtx_timers.lock();
 
 	//We push the timer into the timer array, so it will be
 	//perodically checked by the queue loop. If the timer elapses,
@@ -441,7 +464,7 @@ eError FCQueue::config_timer(int id, FCTimer timer)
 	this->timers[id - eLastEvent] = timer;
 
 	//Release mutex
-	this->mtx.unlock();
+	this->mtx_timers.unlock();
 
 	return eSuccess;
 }
@@ -451,9 +474,9 @@ eError FCQueue::start_timer(int id)
 	//We check if id is valid
 	if (id < eLastEvent || id >= eLastTimer)
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
@@ -461,7 +484,7 @@ eError FCQueue::start_timer(int id)
 	if (this->timers[id - eLastEvent].started == false)
 	{
 		//Lock mutex
-		this->mtx.lock();
+		this->mtx_timers.lock();
 
 		auto elapsed = std::chrono::high_resolution_clock::now() - start;
 		long long us = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
@@ -471,7 +494,7 @@ eError FCQueue::start_timer(int id)
 		this->timers[id - eLastEvent].started = true;
 
 		//Release mutex
-		this->mtx.unlock();
+		this->mtx_timers.unlock();
 	}
 
 	return eSuccess;
@@ -482,9 +505,9 @@ eError FCQueue::stop_timer(int id)
 	//We check if id is valid
 	if (id < eLastEvent || id >= eLastTimer)
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
@@ -492,13 +515,13 @@ eError FCQueue::stop_timer(int id)
 	if (this->timers[id - eLastEvent].started == true)
 	{
 		//Lock mutex
-		this->mtx.lock();
+		this->mtx_timers.lock();
 
 		//Stop the timer
 		this->timers[id - eLastEvent].started = false;
 
 		//Release mutex
-		this->mtx.unlock();
+		this->mtx_timers.unlock();
 	}
 
 	return eSuccess;
@@ -509,9 +532,9 @@ eError FCQueue::reset_timer(int id)
 	//We check if id is valid
 	if (id < eLastEvent || id >= eLastTimer)
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_InvalidIndex", param_list.get<int>("split errors"));
+
 		return eFCQueueError_InvalidIndex;
 	}
 
@@ -519,7 +542,7 @@ eError FCQueue::reset_timer(int id)
 	if (this->timers[id - eLastEvent].started == true)
 	{
 		//Lock mutex
-		this->mtx.lock();
+		this->mtx_timers.lock();
 
 		//Set the starting value to zero, it will be reset upon timer start
 		this->timers[id - eLastEvent].start_value = 0;
@@ -528,7 +551,7 @@ eError FCQueue::reset_timer(int id)
 		this->timers[id - eLastEvent].started = false;
 
 		//Release mutex
-		this->mtx.unlock();
+		this->mtx_timers.unlock();
 	}
 
 	return eSuccess;
@@ -541,7 +564,7 @@ void FCQueue::handle_timers()
 	long long us = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
 
 	//Lock mutex
-	this->mtx.lock();
+	this->mtx_timers.lock();
 
 	//Go through the list of timers and execute elapsed
 	for (int i = 0; i < (eLastTimer - eLastEvent); i++)
@@ -563,7 +586,7 @@ void FCQueue::handle_timers()
 	}
 
 	//Unlock mutex
-	this->mtx.unlock();
+	this->mtx_timers.unlock();
 }
 
 eError FCQueue::set_SIR(void (*function)())
@@ -572,9 +595,9 @@ eError FCQueue::set_SIR(void (*function)())
 	//We check if function is valid
 	if (function == nullptr)
 	{
-		#ifdef DEBUG_FC_QUEUE
-			my_console.WriteToSplitConsole("FCQueueError_FunctionNullPtr", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug queue") == true)
+			my_console.WriteToSplitConsole("FCQueueError_FunctionNullPtr", param_list.get<int>("split errors"));
+
 		return eFCQueueError_FunctionNullPtr;
 	}
 
@@ -646,10 +669,6 @@ eError FCQueue::eval_obj(T obj)
 			this->clear[obj.ID] = obj.clear;
 			this->reg[obj.ID] = (*obj.instances.analyze_instance.*(obj.functions.analyze_pshort_function))(obj.arguments.pshort_argument);
 			break;		
-		case eBPMBufferpShortFunction:
-			this->clear[obj.ID] = obj.clear;
-			this->reg[obj.ID] = (*obj.instances.buffer_instance.*(obj.functions.buffer_pshort_function))(obj.arguments.pshort_argument);
-			break;
 		case eBPMAnalyzerdoubleFunction:
 			this->clear[obj.ID] = obj.clear;
 			this->reg[obj.ID] = (*obj.instances.analyze_instance.*(obj.functions.analyze_double_function))(obj.arguments.double_argument);
@@ -657,9 +676,8 @@ eError FCQueue::eval_obj(T obj)
 
 		default:
 			//This is an error
-			#ifdef DEBUG_FC_QUEUE
-				my_console.WriteToSplitConsole("FCQueueError_QueueEventInvalid", SPLIT_FC);
-			#endif
+			if (param_list.get<bool>("debug queue") == true)
+				my_console.WriteToSplitConsole("FCQueueError_QueueEventInvalid", param_list.get<int>("split main"));
 			retval = eFCQueueError_QueueEventInvalid;
 		break;
 	}

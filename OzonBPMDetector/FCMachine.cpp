@@ -1,4 +1,5 @@
 #include "bpm_globals.hpp"
+#include "bpm_param.hpp"
 #include "FCMachine.hpp"
 #include "SplitConsole.hpp"
 #include <iostream>
@@ -7,6 +8,8 @@
 
 //Extern split console instance
 extern SplitConsole my_console;
+//Extern parameter list
+extern ParamList param_list;
 
 FCMachine::FCMachine()
 {
@@ -33,17 +36,15 @@ FCMachine::FCMachine()
 	this->stop = false;
 
 	//Write debug line
-	#ifdef DEBUG_FC_MACHINE
-		my_console.WriteToSplitConsole("Created FC Machine.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug machine") == true)
+		my_console.WriteToSplitConsole("Created FC Machine.", param_list.get<int>("split main"));
 }
 
 FCMachine::~FCMachine()
 {
 	//Write debug line
-	#ifdef DEBUG_FC_MACHINE
-		my_console.WriteToSplitConsole("Removed FC Machine.", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug machine") == true)
+		my_console.WriteToSplitConsole("Removed FC Machine.", param_list.get<int>("split main"));
 
 	//Remove member states
 	for (int i = 0; i < eNumberOfStates; i++)
@@ -57,9 +58,9 @@ eError FCMachine::bind_function(void(*function)(), int id)
 	//Check if ID is valid
 	if (id >= eNumberOfStates)
 	{
-		#ifdef DEBUG_FC_MACHINE
-			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug machine") == true)
+			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), param_list.get<int>("split errors"));
+
 		return eFCStateError_InvalidIDNumber;
 	}
 
@@ -73,9 +74,9 @@ eError FCMachine::bind_function(FCStates(*function)(), int id)
 	//Check if ID is valid
 	if (id >= eNumberOfStates)
 	{
-		#ifdef DEBUG_FC_MACHINE
-			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug machine") == true)
+			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), param_list.get<int>("split errors"));
+
 		return eFCStateError_InvalidIDNumber;
 	}
 
@@ -89,9 +90,9 @@ eError FCMachine::bind_function(int(*function)(), int id)
 	//Check if ID is valid
 	if (id >= eNumberOfStates)
 	{
-		#ifdef DEBUG_FC_MACHINE
-			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug machine") == true)
+			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), param_list.get<int>("split errors"));
+
 		return eFCStateError_InvalidIDNumber;
 	}
 
@@ -119,9 +120,8 @@ eError FCMachine::machine_loop()
 //Stop method
 void FCMachine::machine_stop()
 {
-	#ifdef DEBUG_FC_MACHINE
-		my_console.WriteToSplitConsole("Stopping machine!", SPLIT_FC);
-	#endif
+	if (param_list.get<bool>("debug machine") == true)
+		my_console.WriteToSplitConsole("Stopping machine!", param_list.get<int>("split main"));
 
 	//Set the stop flag to true
 	this->stop = true;
@@ -134,6 +134,7 @@ eError FCMachine::execute()
 	//Check if everything's initialized
 	if (is_initialized == false)
 	{
+		set_thread_priority();
 		bool initialized = true;
 		for (int i = 0; i < eNumberOfStates; i++)
 		{
@@ -146,9 +147,9 @@ eError FCMachine::execute()
 
 	if (is_initialized == false)
 	{
-		#ifdef DEBUG_FC_MACHINE
-			my_console.WriteToSplitConsole("FCStateError_FCMachineNotInitialized", SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug machine") == true)
+			my_console.WriteToSplitConsole("FCStateError_FCMachineNotInitialized", param_list.get<int>("split errors"));
+
 		return eFCStateError_FCMachineNotInitialized;
 	}
 
@@ -164,9 +165,9 @@ eError FCMachine::execute()
 		next_id = this->active_state->get_next_id();
 		if (next_id >= this->size_info)
 		{
-			#ifdef DEBUG_FC_MACHINE
-				my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(next_id), SPLIT_FC);
-			#endif
+			if (param_list.get<bool>("debug machine") == true)
+				my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(next_id), param_list.get<int>("split errors"));
+
 			return eFCStateError_InvalidIDNumber;
 		}
 
@@ -199,9 +200,9 @@ eError FCMachine::set_trans(int id)
 	//Check if ID is valid
 	if (id >= eNumberOfStates)
 	{
-		#ifdef DEBUG_FC_MACHINE
-			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), SPLIT_FC);
-		#endif
+		if (param_list.get<bool>("debug machine") == true)
+			my_console.WriteToSplitConsole("FCStateError_InvalidIDNumber " + std::to_string(id), param_list.get<int>("split errors"));
+
 		return eFCStateError_InvalidIDNumber;
 	}
 
@@ -214,4 +215,17 @@ eError FCMachine::set_trans(int id)
 int FCMachine::get_trans()
 {
 	return this->transition;
+}
+
+void FCMachine::set_thread_priority()
+{
+#ifndef _WIN32
+	//Set thread priority
+    	int policy;
+    	struct sched_param param;
+
+	pthread_getschedparam(pthread_self(), &policy, &param);
+    	param.sched_priority = sched_get_priority_max(policy);
+    	pthread_setschedparam(pthread_self(), policy, &param);
+#endif
 }

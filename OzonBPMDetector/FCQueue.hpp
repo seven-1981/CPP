@@ -41,11 +41,13 @@ private:
 	//SIR - software interrupt routine
 	void (*SIR)();
 	
-	//Mutex for thread sync
-	std::mutex mtx;
+	//Mutexes for thread sync
+	std::mutex mtx_queue;
+	std::mutex mtx_timers;
 
 	//Private methods - aux method for start_queue
 	eError queue_loop();
+	eError SIR_loop();
 
 	//Handle timers
 	void handle_timers();
@@ -78,6 +80,7 @@ public:
 
 	//Static methods (doesn't require instance)
 	std::future<eError> start_queue();
+	std::future<eError> start_SIR();
 
 	//Create timer method
 	eError config_timer(int id, FCTimer timer);
