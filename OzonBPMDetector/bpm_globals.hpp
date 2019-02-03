@@ -37,8 +37,7 @@ enum eError
 	eGPIONumberNotValid		=	0x01,
 	eGPIOConfiguredAsInput		=	0x02,
 	eGPIOWriterNotInitialized	=	0x03,
-	eGPIOWriterInvalidControlMode	=	0x04,
-	eGPIOWriterInvalidTiming	=	0x05,
+
 	eGPIOWriterResetInvalidOption   =       0x06,
 	eGPIOWriterInvalidCharacter     =	0x07,
 	eGPIOWriterCycleNotFinished     =       0x08,
@@ -286,12 +285,8 @@ struct SevenSegTiming
 	long int pause_seg_addr;
 };
 
-//Default timing values
-#define HOLD_ADDR_SEG	400
-#define PAUSE_ADDR_SEG	  50
-#define HOLD_SEG_ADDR	400
-#define PAUSE_SEG_ADDR    50
-
+//Cycle time used for timer interrupt controlled gpio writer
+//(not working yet)
 #define DISPLAY_CYCLE 200
 
 //Time we wait after exiting prompt while loop

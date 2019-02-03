@@ -372,7 +372,8 @@ private:
 			std::string command = message.substr(2, message.length() - 2);		
 			//Check if known command
 			std::string command2 = command.substr(0, 5);
-			if (command != "quit" && command2 != "state")
+			if (command != "quit" && command != "restart" && command != "reboot"
+			 && command2 != "state")
 				return false;
 	
 			//Set message

@@ -443,12 +443,24 @@ void software_interrupt_routine()
 		}
 
 		//Check if there is some command pending from the socket
-		std::string command;
-		appl_info.os_socket->get_buffer(command); // No second argument, clear data
+		std::string command = "";
+		appl_info.os_socket->get_buffer(command);
 		if (command == "quit")
 		{
 			//Stop the threads
 			simulate_keyb_quit();
+		}
+		if (command == "restart")
+		{
+			//Restart the program
+			simulate_keyb_quit();
+			system("./bpm_restart.sh &"); //The ampersand is important here, making the execution async!
+		}
+		if (command == "reboot")
+		{
+			//Reboot the PI
+			simulate_keyb_quit();
+			system("./bpm_reboot.sh &"); //The ampersand is important here, making the execution async!
 		}
 		if (command.substr(0, 6) == "state ")
 		{

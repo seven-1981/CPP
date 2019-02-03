@@ -311,7 +311,7 @@ FCStates StateBPM_loop()
 	}
 
 	//Log the capture and analyze state if one of it has changed
-	if (param_list.get<bool>("debug functions") == true)
+	if (param_list.get<bool>("debug bpm state") == true)
 	{
 		if ((eCaptureStateOld != eCaptureState) || (eAnalyzeStateOld != eAnalyzeState))
 		{

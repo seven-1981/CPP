@@ -30,10 +30,6 @@ public:
 	eError print_string(std::string text, unsigned int cycle);
 	//Set all pins to zero
 	eError reset_display(int option);
-	//Configuration setter
-	eError set_mode(int mode);
-	//Timing setter
-	eError set_timing(SevenSegTiming timing);
 
 	#ifndef _WIN32
 		//Activation method for timer interrupt
@@ -54,11 +50,6 @@ public:
 private:
 	//Initialized state
 	bool is_initialized;
-	//Control mode
-	//Pin control mode: 0=address first, 1=segments first
-	int control_mode;
-	//Timing configuration, times in microseconds
-	SevenSegTiming timing_config;
 	//Address pins
 	GPIOPin* adr_1;
 	GPIOPin* adr_2;

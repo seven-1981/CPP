@@ -69,17 +69,6 @@ eError GPIOWriter::init_writer()
 	this->seg_7 = new(std::nothrow) GPIOPin(SEGMENT_PIN_7, eOUT, false);
 	this->seg_8 = new(std::nothrow) GPIOPin(SEGMENT_PIN_8, eOUT, false);
 
-	//Set configuration
-	this->control_mode = 1;
-
-	//Timing configuration
-	SevenSegTiming config;
-	config.hold_addr_seg = HOLD_ADDR_SEG;
-	config.pause_addr_seg = PAUSE_ADDR_SEG;
-	config.hold_seg_addr = HOLD_SEG_ADDR;
-	config.pause_seg_addr = PAUSE_SEG_ADDR;
-	this->timing_config = config;
-
 	//Check for proper initialization
 	if (   this->adr_1 == nullptr || this->adr_2 == nullptr || this->adr_3 == nullptr 
 	    || this->adr_4 == nullptr || this->seg_1 == nullptr || this->seg_2 == nullptr
@@ -239,9 +228,16 @@ eError GPIOWriter::print_number(float number)
 		//std::cout << num.hundreds << "_" << num.tens << "_";
 		//std::cout << num.ones << "_" << num.tenths << std::endl;
 	}
+
+	//Get timing parameters and control mode
+	int control_mode = param_list.get<int>("control mode");
+	int hold_addr_seg = param_list.get<int>("hold addr seg");
+	int pause_addr_seg = param_list.get<int>("pause addr seg");
+	int hold_seg_addr = param_list.get<int>("hold seg addr");
+	int pause_seg_addr = param_list.get<int>("pause seg addr");
 	
 	//Depending on the control mode, the timing is different
-	if (this->control_mode == 0)
+	if (control_mode == 0)
 	{
 		//Control mode 0
 		//First we set the address, then we set the segments
@@ -252,7 +248,7 @@ eError GPIOWriter::print_number(float number)
 		set_segments(num.hundreds, 16, false);
 		set_dot(num.number, 1);
 		//We keep this for some time
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 
 		//We reset the segments
 		reset_display(2);
@@ -260,37 +256,37 @@ eError GPIOWriter::print_number(float number)
 		reset_display(1);
 
 		//We pause for a short time
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 
 		//Set tens
 		this->adr_2->setval_gpio(true);
 		set_segments(num.tens, 16, false);
 		set_dot(num.number, 2);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 		reset_display(2);
 		reset_display(1);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 
 		//Set ones
 		this->adr_3->setval_gpio(true);
 		set_segments(num.ones, 16, false);
 		set_dot(num.number, 3);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 		reset_display(2);
 		reset_display(1);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 
 		//Set tenths
 		this->adr_4->setval_gpio(true);
 		set_segments(num.tenths, 16, false);
 		//There's no decimal dot needed at the end for now
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 		reset_display(2);
 		reset_display(1);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 	}
 	
-	if (this->control_mode == 1)
+	if (control_mode == 1)
 	{
 		//Control mode 1
 		//First we set the segments, then we set the address
@@ -301,7 +297,7 @@ eError GPIOWriter::print_number(float number)
 		set_dot(num.number, 1);
 		this->adr_1->setval_gpio(true);
 		//We keep this for some time
-		usleep(HOLD_SEG_ADDR);
+		usleep(hold_seg_addr);
 
 		//We reset the addresses
 		reset_display(1);
@@ -309,34 +305,34 @@ eError GPIOWriter::print_number(float number)
 		reset_display(2);
 
 		//We pause for a short time
-		usleep(PAUSE_SEG_ADDR);
+		usleep(pause_seg_addr);
 
 		//Set tens
 		set_segments(num.tens, 16, false);
 		set_dot(num.number, 2);
 		this->adr_2->setval_gpio(true);
-		usleep(HOLD_SEG_ADDR);
+		usleep(hold_seg_addr);
 		reset_display(1);
 		reset_display(2);
-		usleep(PAUSE_SEG_ADDR);
+		usleep(pause_seg_addr);
 
 		//Set ones
 		set_segments(num.ones, 16, false);
 		set_dot(num.number, 3);
 		this->adr_3->setval_gpio(true);
-		usleep(HOLD_SEG_ADDR);
+		usleep(hold_seg_addr);
 		reset_display(1);
 		reset_display(2);
-		usleep(PAUSE_SEG_ADDR);
+		usleep(pause_seg_addr);
 
 		//Set tenths
 		set_segments(num.tenths, 16, false);
 		//There's no decimal dot needed at the end for now
 		this->adr_4->setval_gpio(true);
-		usleep(HOLD_SEG_ADDR);
+		usleep(hold_seg_addr);
 		reset_display(1);
 		reset_display(2);
-		usleep(PAUSE_SEG_ADDR);
+		usleep(pause_seg_addr);
 	}
 
 	return retval;
@@ -466,9 +462,16 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 	char secnd = disp[pos+1];
 	char third = disp[pos+2];
 	char forth = disp[pos+3];
+
+	//Get timing parameters and control mode
+	int control_mode = param_list.get<int>("control mode");
+	int hold_addr_seg = param_list.get<int>("hold addr seg");
+	int pause_addr_seg = param_list.get<int>("pause addr seg");
+	int hold_seg_addr = param_list.get<int>("hold seg addr");
+	int pause_seg_addr = param_list.get<int>("pause seg addr");
 	
 	//Depending on the control mode, the timing is different
-	if (this->control_mode == 0)
+	if (control_mode == 0)
 	{
 		//Control mode 0
 		//First we set the address, then we set the segments
@@ -478,7 +481,7 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 		//We set the pins of the segments according to the received digits
 		set_segments(first, -32, true);
 		//We keep this for some time
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 
 		//We reset the segments
 		reset_display(2);
@@ -486,34 +489,34 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 		reset_display(1);
 
 		//We pause for a short time
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 
 		//Set second
 		this->adr_2->setval_gpio(true);
 		set_segments(secnd, -32, true);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 		reset_display(2);
 		reset_display(1);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 
 		//Set third
 		this->adr_3->setval_gpio(true);
 		set_segments(third, -32, true);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 		reset_display(2);
 		reset_display(1);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 
 		//Set fourth
 		this->adr_4->setval_gpio(true);
 		set_segments(forth, -32, true);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_addr_seg);
 		reset_display(2);
 		reset_display(1);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_addr_seg);
 	}
 	
-	if (this->control_mode == 1)
+	if (control_mode == 1)
 	{
 		//Control mode 1
 		//First we set the segments, then we set the address
@@ -523,7 +526,7 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 		set_segments(first, -32, true);
 		this->adr_1->setval_gpio(true);
 		//We keep this for some time
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_seg_addr);
 
 		//We reset the addresses
 		reset_display(1);
@@ -531,31 +534,31 @@ eError GPIOWriter::print_string(const char* text, int size, int pos)
 		reset_display(2);
 
 		//We pause for a short time
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_seg_addr);
 
 		//Set second
 		set_segments(secnd, -32, true);
 		this->adr_2->setval_gpio(true);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_seg_addr);
 		reset_display(1);
 		reset_display(2);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_seg_addr);
 
 		//Set third
 		set_segments(third, -32, true);
 		this->adr_3->setval_gpio(true);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_seg_addr);
 		reset_display(1);
 		reset_display(2);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_seg_addr);
 
 		//Set fourth
 		set_segments(forth, -32, true);
 		this->adr_4->setval_gpio(true);
-		usleep(HOLD_ADDR_SEG);
+		usleep(hold_seg_addr);
 		reset_display(1);
 		reset_display(2);
-		usleep(PAUSE_ADDR_SEG);
+		usleep(pause_seg_addr);
 	}
 
 	return retval;
@@ -672,69 +675,6 @@ eError GPIOWriter::check_chars(const char* text, int size)
 	{
 		if ((text[i] < 32) || (text[i] > 127))
 			retval = eGPIOWriterInvalidCharacter;
-	}
-
-	return retval;
-}
-
-eError GPIOWriter::set_mode(int mode)
-{
-	//Declare return value
-	eError retval = eSuccess;
-
-	//Set the control mode of the writer class
-	//The control mode defines the timing behaviour of the 
-	//address and the segment lines
-	//0 means, set address first, then segments
-	//1 means, set segments first, then address
-	//Re-set is done in opposite order
-
-	//Write debug line
-	if (param_list.get<bool>("debug writer") == true)
-		my_console.WriteToSplitConsole("GPIO Writer Class: Set control mode = " + std::to_string(mode), param_list.get<int>("split main"));
-
-	switch (mode)
-	{
-		case 0:
-			this->control_mode = 0;
-			break;
-		case 1:
-			this->control_mode = 1;
-			break;
-		default:
-			retval = eGPIOWriterInvalidControlMode;
-	}
-
-	return retval;
-}
-
-eError GPIOWriter::set_timing(SevenSegTiming timing)
-{
-	//Declare return value
-	eError retval = eSuccess;
-
-	//Set the timing of the writer class
-
-	//Write debug line
-	if (param_list.get<bool>("debug writer") == true)
-	{
-		my_console.WriteToSplitConsole("GPIO Writer Class: Set timing... ", param_list.get<int>("split main"));
-		//std::cout << "GPIO Writer Class: HOLD_ADDR_SEG " << timing.hold_addr_seg << std::endl;
-		//std::cout << "GPIO Writer Class: PAUSE_ADDR_SEG " << timing.pause_addr_seg << std::endl;
-		//std::cout << "GPIO Writer Class: HOLD_SEG_ADDR " << timing.hold_seg_addr << std::endl;
-		//std::cout << "GPIO Writer Class: PAUSE_SEG_ADDR " << timing.pause_seg_addr << std::endl;
-	}
-
-	if ((timing.hold_addr_seg < 0) 
-         || (timing.pause_addr_seg < 0) 
-	 || (timing.hold_seg_addr < 0) 
-	 || (timing.pause_seg_addr < 0))
-	{
-		retval = eGPIOWriterInvalidTiming;
-	}
-	else
-	{
-		this->timing_config = timing;
 	}
 
 	return retval;

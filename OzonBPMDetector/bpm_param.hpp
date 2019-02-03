@@ -83,6 +83,7 @@ public:
 		add(new TypedParam<bool>("debug state", false));
 		add(new TypedParam<bool>("debug machine", false));
 		add(new TypedParam<bool>("debug functions", true));
+		add(new TypedParam<bool>("debug bpm state", false));
 		add(new TypedParam<bool>("debug audio", true));
 		add(new TypedParam<bool>("debug wavfile", false));
 		add(new TypedParam<bool>("debug analyze", true));
@@ -98,6 +99,7 @@ public:
 		add(new TypedParam<int>("split main", 1, 0, 4));
 		add(new TypedParam<int>("split input", 0, 0, 4));
 		//Timing of segment display
+		add(new TypedParam<int>("control mode", 1, 0, 1));
 		add(new TypedParam<int>("hold addr seg", 400, 100, 5000));
 		add(new TypedParam<int>("pause addr seg", 50, 10, 5000));
 		add(new TypedParam<int>("hold seg addr", 400, 100, 5000));
