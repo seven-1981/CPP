@@ -10,7 +10,6 @@
 #define MAX_LINENBR 32767
 //Define for log file creation
 //Each split gets a logfile 'logX.txt' with X=SPLIT
-#define SPLIT_LOGGING
 
 //Struct for width and height of console window
 struct dimensions

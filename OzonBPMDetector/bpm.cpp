@@ -26,6 +26,7 @@ extern "C" {
 #include "FCMachine.hpp"
 #include "FCQueue.hpp"
 #include "FCEvent.hpp"
+#include "FCHDMI.hpp"
 #include "SplitConsole.hpp"
 
 //Timer values used
@@ -462,15 +463,19 @@ void software_interrupt_routine()
 			simulate_keyb_quit();
 			system("./bpm_reboot.sh &"); //The ampersand is important here, making the execution async!
 		}
-		if (command.substr(0, 6) == "state ")
+		if (command.substr(0, 5) == "state")
 		{
-			if (command.substr(7, 3) == "BPM")
+			if (command.substr(6, 3) == "BPM")
 				SEND_EVENT(eGoToStateBPM);
+			if (command.substr(6, 5) == "TIMER")
+				SEND_EVENT(eGoToStateTimer);
+			if (command.substr(6, 5) == "CLOCK")
+				SEND_EVENT(eGoToStateClock);
 		}
 	#endif
 }
 	
-int main()
+int main(int argc, char **argv)
 {
 	//Begin of main routine
 	if (param_list.get<bool>("debug main") == true)
@@ -490,8 +495,30 @@ int main()
 	{
 		my_console.WriteToSplitConsole("Error during application init.", param_list.get<int>("split errors"));
 		my_console.WriteToSplitConsole("Errorcode: " + std::to_string(retval), param_list.get<int>("split errors"));
+		
+		//If socket was initialized properly, stop it
+		if (appl_info.os_socket->check_init() == eSuccess)
+			appl_info.os_socket->stop_listening();
 		exit(retval);
 	}
+
+	//Check if HDMI display is attached
+	#ifndef _WIN32
+		if (HDMI::get_HDMI_state() == true)
+		{
+			appl_info.hdmi_attached = true;
+			my_console.WriteToSplitConsole("HDMI display detected.", param_list.get<int>("split main"));
+	
+			//Initialize window
+			FCWindow::init(argc, argv);
+			appl_info.window = new FCWindowLabel(500, 250, "OZON BPM COUNTER", true);
+		}
+		else
+		{
+			appl_info.hdmi_attached = false;
+			my_console.WriteToSplitConsole("HDMI display NOT detected.", param_list.get<int>("split main"));
+		}
+	#endif	
 
 	//Create GPIO information
 	retval = init_gpio();
@@ -595,20 +622,32 @@ int main()
 		if (param_list.get<bool>("debug main") == true)
 		{
 			my_console.WriteToSplitConsole("Socket listener running.", param_list.get<int>("split main"));
-			my_console.WriteToSplitConsole("Entering prompt mode...", param_list.get<int>("split main"));
 			std::this_thread::sleep_for(std::chrono::milliseconds(PAUSE_WAIT));
 		}
 	#else
 		if (param_list.get<bool>("debug main") == true)
 		{
-			my_console.WriteToSplitConsole("Entering prompt mode...", param_list.get<int>("split main"));
 			std::this_thread::sleep_for(std::chrono::milliseconds(PAUSE_WAIT));
 		}
 	#endif
 
-	//Start prompt thread
-	std::thread prompt_thread(control_statemachine);
-	prompt_thread.join();	
+	//If HDMI attached, don't start the prompt thread
+	if (appl_info.hdmi_attached == true)
+	{
+		FCWindow::start();
+		while (appl_info.window->get_quit() == false)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(PAUSE_WAIT));
+		}
+		exit_application();
+	}
+	else
+	{
+		//Start prompt thread
+		my_console.WriteToSplitConsole("Entering prompt mode...", param_list.get<int>("split main"));
+		std::thread prompt_thread(control_statemachine);
+		prompt_thread.join();	
+	}
 	
 	//We shut down the display
 	//GPIO not used on WIN32
@@ -620,11 +659,15 @@ int main()
 	delete appl_info.os_queue;
 	delete appl_info.os_machine;
 
-	//GPIO and socket not used on WIN32
+	//GPIO, socket and window not used on WIN32
 	#ifndef _WIN32
 		delete gpio_info.gpio_writer;
 		delete gpio_info.gpio_button;
 		delete appl_info.os_socket;
+
+		//Stop window event listener
+		FCWindow::stop();
+		delete appl_info.window;
 	#endif	
 
 	delete bpm_info.bpm_audio;

@@ -365,6 +365,14 @@ FCStates StateBPM_loop()
 		//gpio_info.gpio_writer->print_number((float)bpm_value);
 		//Timer interrupt function, not used yet
 		//gpio_info.gpio_writer->set_value(bpm_value);
+
+		//Display value using window
+		if (appl_info.hdmi_attached == true)
+		{
+			FCWindowData_t windata;
+			windata.string_data = std::to_string(bpm_value).c_str();
+			appl_info.window->update(windata);
+		}
 	#endif
 	
 	LOOP_OR_EXIT;

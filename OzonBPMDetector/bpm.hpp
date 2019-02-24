@@ -8,6 +8,7 @@
 #include "FCMachine.hpp"
 #include "FCQueue.hpp"
 #include "FCSocket.hpp"
+#include "FCWindow.hpp"
 #include "SplitConsole.hpp"
 #include "bpm_audio.hpp"
 #include "bpm_analyze.hpp"
@@ -44,10 +45,16 @@ struct FCApplInfo
 	std::chrono::high_resolution_clock::time_point start;
 
 	//Socket for TCP connection
+	//FCWindow handle
 	#ifndef _WIN32
-	FCSocket* os_socket;
-	//Future for socket 
-	std::future<eError> socket_thread;
+		FCSocket* os_socket;
+		//Future for socket 
+		std::future<eError> socket_thread;
+
+		//HDMI status
+		bool hdmi_attached;
+		//Window handle
+		FCWindowLabel* window;
 	#endif
 } appl_info;
 
