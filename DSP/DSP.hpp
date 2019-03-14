@@ -305,7 +305,7 @@ namespace DSP
 		long size = inbuffer.get_size();
 
 		//RMS value
-		double rms_value;
+		double rms_value = 0.0;
 
 		for (long i = 0; i < size; i++)
 			rms_value += ((double)inbuffer[i] * (double)inbuffer[i]) / size;
@@ -441,33 +441,6 @@ namespace DSP
 	}
 
 	template <typename T>
-	void zero_padding(const buffer<T>& inbuffer, buffer<T>& outbuffer)
-	{
-		//Get buffer sizes
-		long in_size = inbuffer.get_size();
-		long out_size = outbuffer.get_size();
-
-		if (in_size < out_size)
-		{
-			for (int i = 0; i < out_size; i++)
-			{
-				if (i < in_size)
-					outbuffer[i] = inbuffer[i];
-				else
-					outbuffer[i] = 0.0;
-			}
-		}
-		else
-		{
-			for (int i = 0; i < out_size; i++)
-			{
-				outbuffer[i] = 0.0;
-			}
-		}
-	}
-		
-
-	template <typename T>
 	long pow2_size(const buffer<T>& inbuffer, bool floor_ceil)
 	{
 		if (floor_ceil == true)
@@ -500,19 +473,6 @@ namespace DSP
 	}
 
 	template <typename T>
-	void apply_window(buffer<T>& inbuffer, std::function<double(double, double, double)> f, double a)
-	{
-		//Get buffer size
-		long size = inbuffer.get_size();
-
-		for (long i = 0; i < size; i++)
-		{
-			double temp = inbuffer[i];
-			inbuffer[i] = temp * f((double)i, (double)size, a);
-		}
-	}
-
-	template <typename T>
 	void apply_window(const buffer<T>& inbuffer, buffer<double>& outbuffer, std::function<double(double, double, double)> f, double a)
 	{
 		//Get buffer size
@@ -525,38 +485,6 @@ namespace DSP
 	double hanning(double x, double N)
 	{
 		return 0.5 * (1 - cos(2 * PI * x / (N - 1)));
-	}
-
-	double hamming(double x, double N, double alpha)
-	{
-		return alpha - (1 - alpha) * cos(2 * PI * x / (N - 1));
-	}
-
-	double blackman(double x, double N, double alpha)
-	{
-		double a0 = (1 - alpha) / 2;
-		double a1 = 0.5;
-		double a2 = alpha / 2;
-		return a0 - a1 * cos(2 * PI * x / (N - 1)) + a2 * cos(4 * PI * x / (N - 1));
-	}
-
-	double blackman_harris(double x, double N)
-	{
-		double a0 = 0.35875;
-		double a1 = 0.48829;
-		double a2 = 0.14128;
-		double a3 = 0.01168;
-		return a0 - a1 * cos(2 * PI * x / (N - 1)) + a2 * cos(4 * PI * x / (N - 1)) - a3 * cos(6 * PI * x / (N - 1));
-	}
-
-	double flat_top(double x, double N)
-	{
-		double a0 = 0.21557895;
-		double a1 = 0.41663158;
-		double a2 = 0.277263158;
-		double a3 = 0.083578947;
-		double a4 = 0.006947368;
-		return a0 - a1 * cos(2 * PI * x / (N - 1)) + a2 * cos(4 * PI * x / (N - 1)) - a3 * cos(6 * PI * x / (N - 1)) + a4 * cos(8 * PI * x / (N - 1));
 	}
 
 	double tukey(double x, double N, double alpha)
@@ -675,53 +603,6 @@ namespace DSP
 		double bpm_lag = min_lag + (max_lag - min_lag) / size * max_array_index;
 
 		return 60.0 / bpm_lag;
-	}
-
-	template <typename T>
-	void cut_dc_offset(const buffer<T>& inbuffer, buffer<T>& outbuffer)
-	{
-		//Get buffer size
-		long size = inbuffer.get_size();
-
-		//Get average of buffer values
-		T avg = DSP::get_mean_value(inbuffer);
-
-		//Remove dc offset
-		for (long i = 0; i < size; i++)
-			outbuffer[i] = inbuffer[i] - avg;	
-	}
-
-	template <typename T>
-	void sliding_window(buffer<T>& buffer1, buffer<T>& buffer2)
-	{
-		//Get buffer sizes
-		long size1 = buffer1.get_size();
-		long size2 = buffer2.get_size();
-
-		//Check buffer size condition
-		if ((size1 % size2 != 0) && (size2 % size1 != 0))
-			return;
-		
-		//Copy of values from buffer 2 to buffer 1
-		if (size1 > size2)
-		{
-			//Slide values to left (towards zero index)
-			for (long i = 0; i < (size1 - size2); i++)
-				 buffer1[i] = buffer1[i + size2];
-			//Copy new values
-			for (long i = 0; i < size2; i++)
-				buffer1[size1 - size2 + i] = buffer2[i];
-		}
-		//Copy of values from buffer 1 to buffer 2
-		else
-		{
-			//Slide values to left (towards zero index)
-			for (long i = 0; i < (size2 - size1); i++)
-				 buffer2[i] = buffer2[i + size1];
-			//Copy new values
-			for (long i = 0; i < size1; i++)
-				buffer2[size2 - size1 + i] = buffer1[i];
-		}
 	}
 }
 
