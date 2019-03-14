@@ -8,11 +8,13 @@
 #include "FCMachine.hpp"
 #include "FCQueue.hpp"
 #include "FCSocket.hpp"
-#include "FCWindow.hpp"
+#include "FCWindowLabel.hpp"
 #include "SplitConsole.hpp"
 #include "bpm_audio.hpp"
 #include "bpm_analyze.hpp"
 #include "bpm_param.hpp"
+#include <sstream>
+#include <iomanip>
 #include <string>
 #include <thread>
 #include <chrono>
@@ -87,6 +89,16 @@ template<typename R>
 bool is_ready(std::future<R> const& f)
 { 
 	return (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready); 
+}
+
+//Converting string with double number precision (which is 6 per default) to another value
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 6)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::setw(4) << std::fixed << a_value;
+    return out.str();
 }
 
 //Retrieving user input

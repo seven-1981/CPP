@@ -497,9 +497,11 @@ int main(int argc, char **argv)
 		my_console.WriteToSplitConsole("Errorcode: " + std::to_string(retval), param_list.get<int>("split errors"));
 		
 		//If socket was initialized properly, stop it
-		if (appl_info.os_socket->check_init() == eSuccess)
-			appl_info.os_socket->stop_listening();
-		exit(retval);
+		#ifndef _WIN32
+			if (appl_info.os_socket->check_init() == eSuccess)
+				appl_info.os_socket->stop_listening();
+			exit(retval);
+		#endif	
 	}
 
 	//Check if HDMI display is attached
@@ -632,6 +634,7 @@ int main(int argc, char **argv)
 	#endif
 
 	//If HDMI attached, don't start the prompt thread
+	#ifndef _WIN32
 	if (appl_info.hdmi_attached == true)
 	{
 		FCWindow::start();
@@ -642,6 +645,7 @@ int main(int argc, char **argv)
 		exit_application();
 	}
 	else
+	#endif
 	{
 		//Start prompt thread
 		my_console.WriteToSplitConsole("Entering prompt mode...", param_list.get<int>("split main"));

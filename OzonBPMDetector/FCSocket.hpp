@@ -1,3 +1,5 @@
+#ifndef _WIN32
+
 #ifndef _FCSOCKET_H
 #define _FCSOCKET_H
 
@@ -75,5 +77,7 @@ private:
 	bool process_message(std::string& message);
 	void check_buffer();
 };
+
+#endif
 
 #endif

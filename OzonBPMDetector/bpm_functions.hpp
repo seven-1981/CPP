@@ -370,7 +370,7 @@ FCStates StateBPM_loop()
 		if (appl_info.hdmi_attached == true)
 		{
 			FCWindowData_t windata;
-			windata.string_data = std::to_string(bpm_value).c_str();
+			windata.string_data = to_string_with_precision(bpm_value, 1).c_str();
 			appl_info.window->update(windata);
 		}
 	#endif
