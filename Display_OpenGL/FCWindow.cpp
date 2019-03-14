@@ -2,6 +2,7 @@
 
 #include <GL/freeglut.h>
 
+
 //***********************************************************************************************
 // FCWindow
 //***********************************************************************************************
@@ -9,11 +10,13 @@
 //Static class data
 FCWindowCommon_t FCWindow::static_data;
 
-FCWindow::FCWindow(int x, int y, std::string title)
+FCWindow::FCWindow(int x, int y, std::string title, bool fullscreen)
 {
 	//Init window size
 	glutInitWindowSize(x, y);
 	this->x = x; this->y = y;
+	//Init quit signal
+	this->quit = false;
 
 	//Store handle in member and create window
   	this->handle = glutCreateWindow(title.c_str());
@@ -23,9 +26,16 @@ FCWindow::FCWindow(int x, int y, std::string title)
 	//Set static callbacks
 	glutDisplayFunc(FCWindow::display);
 	glutReshapeFunc(FCWindow::reshape);
+	glutKeyboardFunc(FCWindow::Keyboard);
 
 	//Sleep duration for decreasing processor usage
-	FCWindow::static_data.sleep = 10;
+	FCWindow::static_data.sleep = 200;
+	//Set fullscreen option
+	FCWindow::static_data.fullscreen = fullscreen;
+	
+	//Set screen resolution
+	FCWindow::static_data.res_x = glutGet(GLUT_WINDOW_WIDTH);
+	FCWindow::static_data.res_y = glutGet(GLUT_WINDOW_HEIGHT);
 }
 
 FCWindow::~FCWindow()
@@ -33,7 +43,12 @@ FCWindow::~FCWindow()
 
 }
 
-void FCWindow::start(int argc, char** argv)
+bool FCWindow::get_quit()
+{
+	return this->quit;
+}
+
+void FCWindow::init(int argc, char** argv)
 {
 	//Init GLUT and save static data
 	FCWindow::static_data.mtx.lock();
@@ -47,7 +62,7 @@ void FCWindow::start(int argc, char** argv)
   	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 }
 
-void FCWindow::start(bool fullscreen = false)
+void FCWindow::start()
 {
 	//Start has been called - execute event loop
 	FCWindow::static_data.mtx.lock();
@@ -59,11 +74,11 @@ void FCWindow::start(bool fullscreen = false)
 		FCWindow::static_data.running = true;
 	}
 
-	FCWindow::static_data.mtx.unlock();
-
-	//Fullscreen is selected
-	if (fullscreen == true)
+	//Is fullscreen selected?
+	if (FCWindow::static_data.fullscreen == true)
 		glutFullScreen();
+
+	FCWindow::static_data.mtx.unlock();
 }
 
 void FCWindow::stop()
@@ -102,46 +117,18 @@ void FCWindow::reshape(int width, int height)
   	current_instance->reshape_(width, height);
 }
 
-//***********************************************************************************************
-// FCWindowLabel
-//***********************************************************************************************
-
-FCWindowLabel::FCWindowLabel(int x, int y, std::string title)
- : FCWindow(x, y, title)
+void FCWindow::Keyboard(unsigned char key, int x, int y)
 {
-	//Initialize derived type specific data
-	this->font = GLUT_BITMAP_TIMES_ROMAN_24;
-	this->data = "";
-	
-	//Update static map (handle and instance)
+	//Static Keyboard callback
+	//Select current instance using static map
+	int current_handle = glutGetWindow();
 	FCWindow::static_data.mtx.lock();
-	FCWindow::static_data.windows.insert(std::pair<int, FCWindowLabel*>(this->handle, this));
-	FCWindow::static_data.mtx.unlock();	
+	FCWindow* current_instance = FCWindow::static_data.windows.find(current_handle)->second;
+	FCWindow::static_data.mtx.unlock();
+  	current_instance->Keyboard_(key, x, y);
 }
 
-FCWindowLabel::~FCWindowLabel()
-{
-
-}
-
-void FCWindowLabel::update(FCWindowData_t& data)
-{
-	this->data = std::string(data.string_data);
-}
-
-void FCWindowLabel::display_(void)
-{
-	//Specific member callback (called from static base 'display')
-	glutSetWindow(this->handle);
-  	glClear(GL_COLOR_BUFFER_BIT);
-  	this->output(200, 50, "* * * OZON BPM COUNTER * * *");
-	std::string s = "BPM VALUE: " + this->data;
-	this->output(100.0f, 200.0f, s.c_str());
-  	glutSwapBuffers();
-	glutPostRedisplay();
-}
-
-void FCWindowLabel::reshape_(int width, int height)
+void FCWindow::reshape_(int width, int height)
 {
 	//Specific member callback (called from static base 'reshape')
   	glViewport(0, 0, width, height);
@@ -153,129 +140,14 @@ void FCWindowLabel::reshape_(int width, int height)
   	glMatrixMode(GL_MODELVIEW);
 }
 
-void FCWindowLabel::output(float x, float y, std::string text)
+void FCWindow::Keyboard_(unsigned char key, int x, int y)
 {
-	glutSetWindow(this->handle);
-	glLineWidth(5.0f);
-	glEnable(GL_LINE_SMOOTH);
-    	glPushMatrix();
-    	glTranslatef(x, y, 0);
-	glScalef(0.5f, -0.5f, 1.0f);
-    	int len = text.length();
-    	for(int i = 0; i < len; i++)
-    	{
-    	    glutStrokeCharacter(GLUT_STROKE_ROMAN, text.at(i));
-    	}
-    	glPopMatrix();
-
-}
-
-void FCWindowLabel::output(int x, int y, std::string text)
-{
-	glutSetWindow(this->handle);
-  	int len, i;
-  	glRasterPos2f(x, y);
-  	len = text.length();
-  	for (i = 0; i < len; i++) 
-	{
-    		glutBitmapCharacter(this->font, text.at(i));
-  	}
-}
-
-//***********************************************************************************************
-// FCWindowSpectrum
-//***********************************************************************************************
-
-FCWindowSpectrum::FCWindowSpectrum(int x, int y, std::string title, int size)
- : FCWindow(x, y, title)
-{
-	//Initialize derived type specific data
-	this->font = GLUT_BITMAP_TIMES_ROMAN_24;
-	this->size = size;
-	this->data = new double[size];
-
-	//Graphic parameters
-	this->x_border = 50;
-	this->y_border_bottom = 50;
-	this->y_border_top = 100;
-	this->x_margin = 5;
-	this->max_value = 100.0;
-	this->min_value = 0.0;
-	
-	//Update static map (handle and instance)
-	FCWindow::static_data.mtx.lock();
-	FCWindow::static_data.windows.insert(std::pair<int, FCWindowSpectrum*>(this->handle, this));
-	FCWindow::static_data.mtx.unlock();	
-}
-
-FCWindowSpectrum::~FCWindowSpectrum()
-{
-	//Delete data array
-	this->data = nullptr;
-	delete[] this->data;
-}
-
-void FCWindowSpectrum::update(FCWindowData_t& data)
-{
-	this->data = data.double_array_data;
-}
-
-void FCWindowSpectrum::display_(void)
-{
-	//Specific member callback (called from static base 'display')
-	glutSetWindow(this->handle);
-  	glClear(GL_COLOR_BUFFER_BIT);
-	//Calculate auxiliary parameters
-	int x_size = (this->x - 2 * this->x_border - ((this->size - 1) * this->x_margin)) / this->size;
-	int x_begin = this->x_border;
-	int x_diff = x_size + this->x_margin;
-  	//Display spectrum
-	for (int i = 0; i < this->size; i++)
-	{
-		//Calculate width coordinates
-		int x_bar = x_begin + i * x_diff;
-		int x_bar2 = x_bar + x_size;
-		//Get data from array and calculate height
-		int y_bar = this->y - this->y_border_bottom;
-		int y_diff = this->y - this->y_border_bottom - this->y_border_top;
-		double m = (double)y_diff / (double)(this->max_value - this->min_value);
-		double n = (double)-m * (double)this->min_value;
-		int y_bar2 = y_bar - (int)(this->data[i] * m + n);
-		//Draw polygon
-		glBegin(GL_POLYGON);
-		glVertex3f(x_bar, y_bar, 0.0);
-		glVertex3f(x_bar2, y_bar, 0.0);
-		glVertex3f(x_bar2, y_bar2, 0.0);
-		glVertex3f(x_bar, y_bar2, 0.0);
-		glEnd();
+	//Key has been pressed
+	switch (key)
+	{	
+		case 27:
+			glutDestroyWindow(this->handle);
+			this->quit = true;
+		break;
 	}
-	glFlush();
-	//Display title
-	this->output(50, 50, "* * * AUDIO SPECTROGRAM * * *");
-  	glutSwapBuffers();
-	glutPostRedisplay();
-}
-
-void FCWindowSpectrum::reshape_(int width, int height)
-{
-	//Specific member callback (called from static base 'reshape')
-  	glViewport(0, 0, width, height);
-	//Update window size
-	this->x = width; this->y = height;
-  	glMatrixMode(GL_PROJECTION);
-  	glLoadIdentity();
-  	gluOrtho2D(0, width, height, 0);
-  	glMatrixMode(GL_MODELVIEW);
-}
-
-void FCWindowSpectrum::output(int x, int y, std::string text)
-{
-	glutSetWindow(this->handle);
-  	int len, i;
-  	glRasterPos2f(x, y);
-  	len = text.length();
-  	for (i = 0; i < len; i++) 
-	{
-    		glutBitmapCharacter(this->font, text.at(i));
-  	}
 }
