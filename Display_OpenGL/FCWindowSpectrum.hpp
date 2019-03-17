@@ -4,6 +4,7 @@
 #include "FCWindow.hpp"
 
 #include <string>
+#include <mutex>
 
 struct FCWindowSpectrumSize_t
 {
@@ -19,6 +20,12 @@ struct FCWindowSpectrumSize_t
 	int tick_width = 5;
 };
 
+//Inherit from base data struct
+struct FCWindowSpectrumData_t : public FCWindowData_t
+{
+	double* values;
+};
+
 //Frequency spectrum display
 class FCWindowSpectrum : public FCWindow
 {
@@ -26,16 +33,18 @@ public:
 	explicit FCWindowSpectrum(int, int, std::string, int, bool);
 	~FCWindowSpectrum();
 
-	void update(FCWindowData_t&);
+	void update(FCWindowData_t*);
 	void set_param(FCWindowSpectrumSize_t&);
 
 private:
 	//Font used on this window
 	void* font;
+	//Mutex for data protection
+	std::mutex spectrum_mutex;
 
 	//Data for frequency array
 	int size;
-	double* data;
+	FCWindowSpectrumData_t data;
 	
 	//Graphic parameters
 	int x_border;

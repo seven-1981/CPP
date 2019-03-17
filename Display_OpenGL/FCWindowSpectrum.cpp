@@ -12,7 +12,6 @@ FCWindowSpectrum::FCWindowSpectrum(int x, int y, std::string title, int size, bo
 	//Initialize derived type specific data
 	this->font = GLUT_BITMAP_TIMES_ROMAN_24;
 	this->size = size;
-	this->data = new double[size];
 
 	//Graphic default parameters
 	this->x_border = 50;
@@ -35,14 +34,18 @@ FCWindowSpectrum::FCWindowSpectrum(int x, int y, std::string title, int size, bo
 
 FCWindowSpectrum::~FCWindowSpectrum()
 {
-	//Delete data array
-	delete[] this->data;
+
 }
 
-void FCWindowSpectrum::update(FCWindowData_t& data)
-{
-	for (int i = 0; i < data.size; i++)
-		this->data[i] = data.double_array_data[i];
+void FCWindowSpectrum::update(FCWindowData_t* data)
+{	
+	//First, cast pointer to derived class
+	FCWindowSpectrumData_t* pWindowData = dynamic_cast<FCWindowSpectrumData_t*>(data);
+	//Protect data
+	this->spectrum_mutex.lock();
+	for (int i = 0; i < this->size; i++)
+		this->data.values[i] = pWindowData->values[i];
+	this->spectrum_mutex.unlock();	
 }
 
 void FCWindowSpectrum::display_(void)
@@ -58,13 +61,15 @@ void FCWindowSpectrum::display_(void)
 	glDisable(GL_SCISSOR_TEST);
 
   	//Display spectrum
+  	//Protect data
+  	this->spectrum_mutex.lock();
 	for (int i = 0; i < this->size; i++)
 	{
 		//Get data from array and calculate height
 		int x_bar = this->x_begin + i * this->x_diff;
 		int x_bar2 = x_bar + this->x_size;
 
-		double lim_val = std::max(this->data[i], this->min_value);
+		double lim_val = std::max(this->data.values[i], this->min_value);
 		lim_val = std::min(lim_val, this->max_value);
 		int y_bar2 = y_bar - (int)(lim_val * m + n);
 
@@ -81,6 +86,7 @@ void FCWindowSpectrum::display_(void)
 		if (i % 2 == 0)
 			output(x_bar, y_bar + 20, std::to_string(i * 43));
 	}
+	this->spectrum_mutex.unlock();
 
   	glutSwapBuffers();
 	glutPostRedisplay();

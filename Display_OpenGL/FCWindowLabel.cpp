@@ -11,7 +11,7 @@ FCWindowLabel::FCWindowLabel(int x, int y, std::string title, bool fullscreen)
 {
 	//Initialize derived type specific data
 	this->font = GLUT_BITMAP_TIMES_ROMAN_24;
-	this->data = "";
+	this->text_items = { };
 	
 	//Update static map (handle and instance)
 	FCWindow::static_data.mtx.lock();
@@ -24,9 +24,14 @@ FCWindowLabel::~FCWindowLabel()
 
 }
 
-void FCWindowLabel::update(FCWindowData_t& data)
+void FCWindowLabel::update(FCWindowData_t* data)
 {
-	this->data = std::string(data.string_data);
+	//First, cast pointer to derived class
+	FCWindowLabelData_t* pWindowData = dynamic_cast<FCWindowLabelData_t*>(data);
+	//Protect data
+	this->label_mutex.lock();
+	this->text_items.items = pWindowData->items;
+	this->label_mutex.unlock();
 }
 
 void FCWindowLabel::display_(void)
@@ -34,9 +39,17 @@ void FCWindowLabel::display_(void)
 	//Specific member callback (called from static base 'display')
 	glutSetWindow(this->handle);
   	glClear(GL_COLOR_BUFFER_BIT);
-  	this->output(340, 50, "* * * OZON BPM COUNTER * * *");
-	std::string s = "BPM VALUE: " + this->data;
-	this->output(100.0f, 200.0f, s.c_str());
+	//Protect data
+	this->label_mutex.lock();
+	for (FCWindowLabelDataItem_t& item : this->text_items.items)
+	{
+		glColor3f(item.color_R, item.color_G, item.color_B);
+		if (item.use_stroke == true)
+			this->output((float)item.x, (float)item.y, item.text);
+		else
+			this->output(item.x, item.y, item.text);
+	}
+	this->label_mutex.unlock();
   	glutSwapBuffers();
 	glutPostRedisplay();
 }
@@ -44,12 +57,12 @@ void FCWindowLabel::display_(void)
 void FCWindowLabel::output(float x, float y, std::string text)
 {
 	glutSetWindow(this->handle);
-	glLineWidth(5.0f);
+	glLineWidth(4.0f);
 	glEnable(GL_LINE_SMOOTH);
     	glPushMatrix();
     	glTranslatef(x, y, 0);
-	glScalef(0.5f, -0.5f, 1.0f);
-    	int len = text.length();
+	glScalef(0.5f, -0.3f, 1.0f);
+	int len = text.length();
     	for(int i = 0; i < len; i++)
     	{
     	    glutStrokeCharacter(GLUT_STROKE_ROMAN, text.at(i));
@@ -69,4 +82,3 @@ void FCWindowLabel::output(int x, int y, std::string text)
     		glutBitmapCharacter(this->font, text.at(i));
   	}
 }
-
