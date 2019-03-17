@@ -9,6 +9,12 @@
 //Forward declaration
 class FCWindow;
 
+//Base struct for data exchange
+struct FCWindowData_t
+{
+	virtual ~FCWindowData_t() { }
+};
+
 //Static GLUT information
 struct FCWindowCommon_t
 {
@@ -18,24 +24,9 @@ struct FCWindowCommon_t
 	bool running;
 	std::map<int, FCWindow*> windows;
 	std::mutex mtx;
-	unsigned int index;
 	unsigned int sleep;
+	int res_x, res_y;
 	bool fullscreen;
-	unsigned int res_x, res_y;
-};
-
-struct FCWindowData_t
-{
-	union
-	{
-		const char* string_data;
-		int int_data;
-		double double_data;
-		double* double_array_data;
-	};
-
-	//Size information
-	int size;
 };
 
 //Base window class
@@ -46,7 +37,13 @@ public:
 	virtual ~FCWindow();
 
 	//Public update method
-	virtual void update(FCWindowData_t&) = 0;
+	//Uses pointer to 
+	virtual void update(FCWindowData_t*) = 0;
+	
+	//Getter function for window parameters
+	int get_width();
+	int get_height();
+	
 	//Public quit method
 	bool get_quit();
 
@@ -57,6 +54,12 @@ public:
 	static void start();
 	//Stop event handler
 	static void stop();
+	
+	//Static getter functions
+	//Get screen resolution and fullscreen option
+	static int get_res_x();
+	static int get_res_y();
+	static bool get_fullscreen();
 
 protected:
 	//Member callbacks - overridden by derived class

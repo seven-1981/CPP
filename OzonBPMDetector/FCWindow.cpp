@@ -43,6 +43,31 @@ FCWindow::~FCWindow()
 
 }
 
+int FCWindow::get_width()
+{
+	return this->x;
+}
+
+int FCWindow::get_height()
+{
+	return this->y;
+}
+
+int FCWindow::get_res_x()
+{
+	return FCWindow::static_data.res_x;
+}
+
+int FCWindow::get_res_y()
+{
+	return FCWindow::static_data.res_y;
+}
+
+bool FCWindow::get_fullscreen()
+{
+	return FCWindow::static_data.fullscreen;
+}
+
 bool FCWindow::get_quit()
 {
 	return this->quit;
@@ -76,8 +101,13 @@ void FCWindow::start()
 
 	//Is fullscreen selected?
 	if (FCWindow::static_data.fullscreen == true)
+	{
 		glutFullScreen();
-
+		//Update resolution
+		FCWindow::static_data.res_x = glutGet(GLUT_SCREEN_WIDTH);
+		FCWindow::static_data.res_y = glutGet(GLUT_SCREEN_HEIGHT);
+	}
+	
 	FCWindow::static_data.mtx.unlock();
 }
 

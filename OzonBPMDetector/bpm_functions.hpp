@@ -369,9 +369,15 @@ FCStates StateBPM_loop()
 		//Display value using window
 		if (appl_info.hdmi_attached == true)
 		{
-			FCWindowData_t windata;
-			windata.string_data = to_string_with_precision(bpm_value, 1).c_str();
-			appl_info.window->update(windata);
+			FCWindowLabelData_t windata;
+			FCWindowLabelDataItem_t element;
+			element.text = "* * * O Z O N - B P M - C O U N T E R * * *";
+			element.x = 100; element.y = 50;
+			windata.items.push_back(element);
+			element.text = to_string_with_precision(bpm_value, 1).c_str();
+			element.x = 100; element.y = 200;
+			windata.items.push_back(element);
+			appl_info.window->update(&windata);
 		}
 	#endif
 	

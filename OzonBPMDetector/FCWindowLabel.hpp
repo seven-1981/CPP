@@ -4,6 +4,26 @@
 #include "FCWindow.hpp"
 
 #include <string>
+#include <vector>
+#include <mutex>
+
+//Define data element for a label window
+struct FCWindowLabelDataItem_t
+{
+	std::string text = "text";
+	int x = 100;
+	int y = 100;
+	float color_R = 1.0;
+	float color_G = 1.0;
+	float color_B = 1.0;
+	bool use_stroke = false;
+};
+
+//Inherit from base data struct
+struct FCWindowLabelData_t : public FCWindowData_t
+{
+	std::vector<FCWindowLabelDataItem_t> items;
+};
 
 //Derived window classes
 //Simple text display
@@ -13,14 +33,16 @@ public:
 	explicit FCWindowLabel(int, int, std::string, bool);
 	~FCWindowLabel();
 
-	void update(FCWindowData_t&);
+	void update(FCWindowData_t*);
 
 private:
 	//Font used on this window
 	void* font;
+	//Mutex for data protection
+	std::mutex label_mutex;
 
 	//Data to display on the window
-	std::string data;
+	FCWindowLabelData_t text_items;
 
 	//Helper functions for displaying text
 	void output(int, int, std::string);
