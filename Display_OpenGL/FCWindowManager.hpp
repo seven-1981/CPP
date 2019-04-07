@@ -16,16 +16,8 @@ enum FCWindowType_e
 	TypeWindowSpectrum
 };
 
-//Struct for window parameters
-struct FCWindowParam_t
-{
-	int x;				//Width of window
-	int y;				//Height of window
-	std::string title;	//Text to display in title bar
-	bool fullscreen;	//Is fullscreen used?
-	
-	int size;			//Size of data
-};
+//Struct for window parameters forward declaration
+struct FCWindowParam_t;
 
 //Static GLUT information
 struct FCWindowCommon_t
