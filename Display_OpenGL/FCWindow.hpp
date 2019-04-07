@@ -14,6 +14,17 @@ struct FCWindowData_t
 	virtual ~FCWindowData_t() { }
 };
 
+//Struct for window parameters
+struct FCWindowParam_t
+{
+	int x;				//Width of window
+	int y;				//Height of window
+	std::string title;	//Text to display in title bar
+	bool fullscreen;	//Is fullscreen used?
+	
+	int size;			//Size of data
+};
+
 //Base window class
 class FCWindow
 {
