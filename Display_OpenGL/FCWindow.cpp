@@ -32,6 +32,9 @@ FCWindow::FCWindow(FCWindowParam_t& param)
 	//Is fullscreen selected?
 	if (this->fullscreen == true)
 		glutFullScreen();
+	
+	//Set keyboard callback
+	this->pKeyboard = nullptr;
 }
 
 FCWindow::~FCWindow()
