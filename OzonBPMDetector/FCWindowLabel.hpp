@@ -30,10 +30,16 @@ struct FCWindowLabelData_t : public FCWindowData_t
 class FCWindowLabel : public FCWindow
 {
 public:
-	explicit FCWindowLabel(int, int, std::string, bool);
 	~FCWindowLabel();
 
 	void update(FCWindowData_t*);
+	
+	//FCWindowManager must be able to access FCWindowSpectrum
+	friend class FCWindowManager;
+	
+protected:
+	//Protected constructor (factory method)
+	explicit FCWindowLabel(FCWindowParam_t&);
 
 private:
 	//Font used on this window

@@ -512,8 +512,9 @@ int main(int argc, char **argv)
 			my_console.WriteToSplitConsole("HDMI display detected.", param_list.get<int>("split main"));
 	
 			//Initialize window
-			FCWindow::init(argc, argv);
-			appl_info.window = new FCWindowLabel(500, 250, "OZON BPM COUNTER", true);
+			FCWindowManager::init(argc, argv);
+			FCWindowParam_t win_param { 500, 250, "OZON BPM COUNTER", true };
+			appl_info.window = FCWindowManager::create(TypeWindowLabel, win_param);
 		}
 		else
 		{
@@ -637,7 +638,7 @@ int main(int argc, char **argv)
 	#ifndef _WIN32
 	if (appl_info.hdmi_attached == true)
 	{
-		FCWindow::start();
+		FCWindowManager::start();
 		while (appl_info.window->get_quit() == false)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(PAUSE_WAIT));
@@ -670,7 +671,7 @@ int main(int argc, char **argv)
 		delete appl_info.os_socket;
 
 		//Stop window event listener
-		FCWindow::stop();
+		FCWindowManager::stop();
 		delete appl_info.window;
 	#endif	
 

@@ -6,17 +6,12 @@
 // FCWindowLabel
 //***********************************************************************************************
 
-FCWindowLabel::FCWindowLabel(int x, int y, std::string title, bool fullscreen)
- : FCWindow(x, y, title, fullscreen)
+FCWindowLabel::FCWindowLabel(FCWindowParam_t& param)
+ : FCWindow(param)
 {
 	//Initialize derived type specific data
 	this->font = GLUT_BITMAP_TIMES_ROMAN_24;
-	this->text_items = { };
-	
-	//Update static map (handle and instance)
-	FCWindow::static_data.mtx.lock();
-	FCWindow::static_data.windows.insert(std::pair<int, FCWindowLabel*>(this->handle, this));
-	FCWindow::static_data.mtx.unlock();	
+	this->text_items = { };	
 }
 
 FCWindowLabel::~FCWindowLabel()
@@ -37,7 +32,7 @@ void FCWindowLabel::update(FCWindowData_t* data)
 void FCWindowLabel::display_(void)
 {
 	//Specific member callback (called from static base 'display')
-	glutSetWindow(this->handle);
+	glutSetWindow(this->get_handle());
   	glClear(GL_COLOR_BUFFER_BIT);
 	//Protect data
 	this->label_mutex.lock();
@@ -56,7 +51,7 @@ void FCWindowLabel::display_(void)
 
 void FCWindowLabel::output(float x, float y, std::string text)
 {
-	glutSetWindow(this->handle);
+	glutSetWindow(this->get_handle());
 	glLineWidth(4.0f);
 	glEnable(GL_LINE_SMOOTH);
     	glPushMatrix();
@@ -73,7 +68,7 @@ void FCWindowLabel::output(float x, float y, std::string text)
 
 void FCWindowLabel::output(int x, int y, std::string text)
 {
-	glutSetWindow(this->handle);
+	glutSetWindow(this->get_handle());
   	int len, i;
   	glRasterPos2f(x, y);
   	len = text.length();

@@ -8,7 +8,9 @@
 #include "FCMachine.hpp"
 #include "FCQueue.hpp"
 #include "FCSocket.hpp"
+#include "FCWindow.hpp"
 #include "FCWindowLabel.hpp"
+#include "FCWindowManager.hpp"
 #include "SplitConsole.hpp"
 #include "bpm_audio.hpp"
 #include "bpm_analyze.hpp"
@@ -56,7 +58,7 @@ struct FCApplInfo
 		//HDMI status
 		bool hdmi_attached;
 		//Window handle
-		FCWindowLabel* window;
+		FCWindow* window;
 	#endif
 } appl_info;
 
