@@ -46,6 +46,7 @@ public:
 
 	int max_size()
 	{
+		std::unique_lock<std::mutex> lock(m_mutex);
 		return m_max_size;
 	}
 
@@ -86,20 +87,17 @@ public:
 		}
 	}
 
-	//Test class
-	friend class Test_FCQueue;
+	//No copy constructor, no move assignment
+	FCQueue(FCQueue&&) = delete;
+	FCQueue(const FCQueue&) = delete;
+	FCQueue& operator=(FCQueue&&) = delete;
+	FCQueue& operator=(const FCQueue&) = delete;
 
 private:
 	//Use deque, because it provides member access
 	std::deque<T> m_queue;
 	std::mutex m_mutex;
 	size_t m_max_size;
-
-	//No copy constructor, no move assignment
-	FCQueue(FCQueue&&) = delete;
-	FCQueue(const FCQueue&) = delete;
-	FCQueue& operator=(FCQueue&&) = delete;
-	FCQueue& operator=(const FCQueue&) = delete;
 };
 
 #endif
