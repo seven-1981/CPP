@@ -13,16 +13,17 @@ class FCStateMachine
 public:
 	FCStateMachine() : 
 	  m_current_state(0),
-		m_previous_state(0) { m_quit.store(false); }
+	  m_previous_state(0) { m_quit.store(false); }
 	~FCStateMachine() { }
 
 	bool init_state(const int state_id, FuncType function_loop, FuncType function_init = nullptr, FuncType function_exit = nullptr)
 	{
+		//Loop function must be always set
 		if (function_loop == nullptr)
 			return false;
 		FCState* pState_to_set = new FCState;
-		//Setter functions check for nullptr
 		pState_to_set->set_loop_function(function_loop);
+		//Other setter functions check for nullptr
 		pState_to_set->set_init_function(function_init);
 		pState_to_set->set_exit_function(function_exit);
 		auto result = m_states.emplace(state_id, pState_to_set);
@@ -37,13 +38,16 @@ public:
 		m_launcher.launch();
 	}
 
+	//Stop execute loop
 	void stop()
 	{
 		m_quit.store(true);
 	}
 
+	//Trigger transition to other state
 	void set_state(const int state_to_set)
 	{
+		//Critical section starts here
 		std::unique_lock<std::mutex> lock(m_mutex);
 		if (state_to_set == m_current_state)
 			return;
@@ -69,6 +73,8 @@ private:
 	//Start executing states - asynchronously executed by start method
 	void loop()
 	{
+		FCState* pStateCurrent = nullptr;
+		FCState* pStatePrevious = nullptr;
 		while (m_quit.load() == false)
 		{
 			//Critical section starts here
@@ -80,15 +86,14 @@ private:
 			} //Mutex is automatically released here
 
 			//Get current state instance from state map
-			FCState* pStateCurrent = m_states.find(current_state)->second;
+			pStateCurrent = m_states.find(current_state)->second;
 			//Check if state has been changed
 			if (current_state != previous_state)
 			{
-				//Get previous state from map
-				FCState* pStatePrevious = m_states.find(previous_state)->second;
-				//State has been changed - set exit state in previous state
+				//Get previous state from map, set exit and execute
+				//This causes state to reset to init state
+				pStatePrevious = m_states.find(previous_state)->second;
 				pStatePrevious->set_exit();
-				//Execute state after exit has been set - changes state to exit
 				pStatePrevious->execute();
 				//Update previous state
 				//Critical section starts here
@@ -98,6 +103,15 @@ private:
 				} //Mutex is automatically released here
 			}
 			//Execute current state
+			pStateCurrent->execute();
+		}
+		//Check if pStateCurrent has been assigned to
+		if (pStateCurrent == nullptr)
+			return;
+		//Ensure exit state is called after stop command
+		if (pStateCurrent->get_state() != FCState_StateExit)
+		{
+			pStateCurrent->set_exit();
 			pStateCurrent->execute();
 		}
 	}
