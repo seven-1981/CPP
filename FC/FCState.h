@@ -22,8 +22,9 @@ public:
 	FCState() :
 	  m_initialized(false), 
 	  m_state(FCState_StateInit) { }
-
 	~FCState() { }
+
+	FCState_State get_state() { return m_state; }
 
 	void set_init_function(FuncType function)
 	{
@@ -70,7 +71,7 @@ public:
 	}
 
 private:
-	std::map<FCState_State, std::function<void()> > m_states;
+	std::map<FCState_State, std::function<void()>> m_states;
 	FCState_State m_state;
 	bool m_initialized;
 };
