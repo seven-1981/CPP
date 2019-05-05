@@ -62,6 +62,12 @@ public:
 		return task_ptr->get_future();
 	}
 
+	//No copy constructor, no move assignment
+	FCThreadPool(FCThreadPool&&) = delete;
+	FCThreadPool(const FCThreadPool&) = delete;
+	FCThreadPool& operator=(FCThreadPool&&) = delete;
+	FCThreadPool& operator=(const FCThreadPool&) = delete;
+
 private:
 	//Private helper class
 	class FCThreadWorker
@@ -104,11 +110,6 @@ private:
 	std::vector<std::thread> m_threads;
 	std::mutex m_conditional_mutex;
 	std::condition_variable m_conditional_lock;
-
-	FCThreadPool(FCThreadPool&&) = delete;
-	FCThreadPool(const FCThreadPool&) = delete;
-	FCThreadPool& operator=(FCThreadPool&&) = delete;
-	FCThreadPool& operator=(const FCThreadPool&) = delete;
 };
 
 #endif
