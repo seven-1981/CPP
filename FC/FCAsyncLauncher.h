@@ -11,17 +11,17 @@ class FCAsyncLauncher
 {
 public:
 	FCAsyncLauncher() :
-	  m_initialized(false), 
-	  m_running(false), 
-	  m_returnValue(false),
-	  m_returnValueSet(false),
-	  m_hasFinished(false) { }
+		m_initialized(false),
+		m_running(false),
+		m_returnValue(false),
+		m_returnValueSet(false),
+		m_hasFinished(false) { }
 	~FCAsyncLauncher() { }
 
 	//Pass function object to member functor
 	//Only first call takes effect
 	template <typename ...Args>
-	bool init(std::function<RetType(Args...)>&& function)
+	bool init(std::function<RetType(Args...)> function)
 	{
 		if (function == nullptr)
 			return false;
@@ -29,8 +29,8 @@ public:
 		{
 			m_function = std::function<RetType(Args...)>(function);
 			m_initialized = true;
-			return true;
 		}
+		return true;
 	}
 
 	//Pass function pointer to member function
@@ -44,8 +44,8 @@ public:
 		{
 			m_function = std::function<RetType(Args...)>(function);
 			m_initialized = true;
-			return true;
 		}
+		return true;
 	}
 
 	//Launch the asynchronous thread - arguments may be passed here
@@ -99,6 +99,12 @@ public:
 			return false;
 	}
 
+	//No copy constructor, no move assignment
+	FCAsyncLauncher(FCAsyncLauncher&&) = delete;
+	FCAsyncLauncher(const FCAsyncLauncher&) = delete;
+	FCAsyncLauncher& operator=(FCAsyncLauncher&&) = delete;
+	FCAsyncLauncher& operator=(const FCAsyncLauncher&) = delete;
+
 private:
 	//Function for thread creation
 	std::function<RetType(Args...)> m_function;
@@ -111,12 +117,6 @@ private:
 	bool m_running; //Indicates that wrapped thread has been started
 	bool m_returnValueSet; //Indicates that return value has been set
 	bool m_hasFinished; //Indicates that wrapped thread has been finished
-
-	//No copy constructor, no move assignment
-	FCAsyncLauncher(FCAsyncLauncher&&) = delete;
-	FCAsyncLauncher(const FCAsyncLauncher&) = delete;
-	FCAsyncLauncher& operator=(FCAsyncLauncher&&) = delete;
-	FCAsyncLauncher& operator=(const FCAsyncLauncher&) = delete;
 };
 
 //Class template specialization for void type
@@ -134,7 +134,7 @@ public:
 	//Pass function object to member functor
 	//Only first call takes effect
 	template <typename ...Args>
-	bool init(std::function<void(Args...)>&& function)
+	bool init(std::function<void(Args...)> function)
 	{
 		if (function == nullptr)
 			return false;
@@ -142,8 +142,8 @@ public:
 		{
 			m_function = std::function<void(Args...)>(function);
 			m_initialized = true;
-			return true;
 		}
+		return true;
 	}
 
 	//Pass function pointer to member function
@@ -157,8 +157,8 @@ public:
 		{
 			m_function = std::function<void(Args...)>(function);
 			m_initialized = true;
-			return true;
 		}
+		return true;
 	}
 
 	//Launch the asynchronous thread - arguments may be passed here
@@ -190,6 +190,12 @@ public:
 			return false;
 	}
 
+	//No copy constructor, no move assignment
+	FCAsyncLauncher(FCAsyncLauncher&&) = delete;
+	FCAsyncLauncher(const FCAsyncLauncher&) = delete;
+	FCAsyncLauncher& operator=(FCAsyncLauncher&&) = delete;
+	FCAsyncLauncher& operator=(const FCAsyncLauncher&) = delete;
+
 private:
 	//Function for thread creation
 	std::function<void(Args...)> m_function;
@@ -200,12 +206,6 @@ private:
 	bool m_running; //Indicates that wrapped thread has been started
 	bool m_returnValueSet; //Indicates that return value has been set
 	bool m_hasFinished; //Indicates that wrapped thread has been finished
-
-	//No copy constructor, no move assignment
-	FCAsyncLauncher(FCAsyncLauncher&&) = delete;
-	FCAsyncLauncher(const FCAsyncLauncher&) = delete;
-	FCAsyncLauncher& operator=(FCAsyncLauncher&&) = delete;
-	FCAsyncLauncher& operator=(const FCAsyncLauncher&) = delete;
 };
 
 #endif
