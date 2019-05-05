@@ -5,45 +5,28 @@
 #include <functional>
 #include <chrono>
 #include <future>
+#include <mutex>
+#include <atomic>
 
 #include "FCThreadPool.h"
 #include "FCEventTable.h"
 #include "FCFunctions.h"
-
-//Wrapper for future and return value, base type
-struct FCIFuture
-{
-	virtual ~FCIFuture() { }
-};
-
-//Typed future wrapper for use in container (std::map)
-template <typename T>
-struct FCFuture : public FCIFuture
-{
-	FCFuture(std::future<T> future) :
-		m_future(std::move(future)) { m_ready = false; }
-	~FCFuture() { }
-
-	//Wrapped future object
-	std::future<T> m_future;
-	bool m_ready;
-	//Return value is accessed only after m_ready has been set
-	T m_returnValue;
-};
 
 //Thread manager class - handles event table and corresponding return data from events
 class FCThreadManager
 {
 public:
 	FCThreadManager(const int n_threads) :
-		m_pool(n_threads),
-		m_shutdown(false) { m_pool.init(); init_event_table(); }
+		m_pool(n_threads) { m_shutdown.store(false); m_pool.init(); init_event_table(); }
 	~FCThreadManager() { clear_return_data(); }
 
 	//Submit event to table using std::function object
 	template <typename T>
 	bool submit_event(const int event_id, const std::function<T> function)
 	{
+		if (m_shutdown.load() == true)
+			return false;
+		//FCEventTable is already thread safe, so no mutex here
 		return m_table.add(event_id, std::function<T>(function));
 	}
 
@@ -51,6 +34,9 @@ public:
 	template <typename F, typename ...Args>
 	bool submit_event(const int event_id, F&& f, Args&&... args)
 	{
+		if (m_shutdown.load() == true)
+			return false;
+		//FCEventTable is already thread safe, so no mutex here
 		//Create std::function with bound arguments
 		std::function<decltype(f(args...))()> func = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
 		return m_table.add(event_id, func);
@@ -60,9 +46,12 @@ public:
 	template <typename T, typename ...Args>
 	bool send_event(const int event_id, Args&&... args)
 	{
+		if (m_shutdown.load() == true)
+			return false;
 		std::function<T> func;
 		if (m_table.get(event_id, func))
 		{
+			std::unique_lock<std::mutex> lock(m_mutex); //Because return data map is not thread safe
 			auto future = m_pool.submit(func, std::forward<Args>(args)...);
 			typedef decltype(future.get()) future_type;
 			auto result = m_return_data.emplace(event_id, new FCFuture<future_type>(std::move(future)));
@@ -77,6 +66,7 @@ public:
 	template <typename RetType>
 	bool get_data(const int event_id, RetType& data)
 	{
+		std::unique_lock<std::mutex> lock(m_mutex); //Because return data map is not thread safe
 		FCIFuture* pFuture = m_return_data.find(event_id)->second;
 		FCFuture<RetType>* pFutureType = dynamic_cast<FCFuture<RetType>*>(pFuture);
 		//Check if the cast was successful
@@ -87,10 +77,10 @@ public:
 			data = pFutureType->m_returnValue;
 			return true;
 		}
-		else if (is_ready(pFutureType->m_future))
+		else if (is_ready(pFutureType->m_future) == true)
 		{
 			pFutureType->m_ready = true;
-			pFutureType->m_returnValue = pFutureType->m_future.get();
+			pFutureType->m_returnValue = pFutureType->m_future.get(); //Must be only called once
 			data = pFutureType->m_returnValue;
 			return true;
 		}
@@ -103,15 +93,46 @@ public:
 	void shutdown()
 	{
 		//Shutdown flag needs to be set first
-		m_shutdown = true;
+		m_shutdown.store(true);
 		m_pool.shutdown();
 	}
 
+	//No copy constructor, no move assignment
+	FCThreadManager(FCThreadManager&&) = delete;
+	FCThreadManager(const FCThreadManager&) = delete;
+	FCThreadManager& operator=(FCThreadManager&&) = delete;
+	FCThreadManager& operator=(const FCThreadManager&) = delete;
+
 private:
-	FCThreadPool m_pool;
-	FCEventTable m_table;
-	std::map<const int, FCIFuture*> m_return_data;
-	bool m_shutdown;
+	//Private helper structures for wrapping future data in container (std::map)
+	//Wrapper for future and return value, base type
+	struct FCIFuture
+	{
+		virtual ~FCIFuture() { }
+	};
+
+	//Typed future wrapper for use in container (std::map)
+	template <typename T>
+	struct FCFuture : public FCIFuture
+	{
+		FCFuture(std::future<T> future) :
+			m_future(std::move(future)) {
+			m_ready = false;
+		}
+		~FCFuture() { }
+
+		//Wrapped future object
+		std::future<T> m_future;
+		bool m_ready;
+		//Return value is accessed only after m_ready has been set
+		T m_returnValue;
+	};
+
+	FCThreadPool m_pool; //Thread safe thread pool
+	FCEventTable m_table; //Thread safe event table
+	std::map<const int, FCIFuture*> m_return_data; //Not thread safe
+	std::atomic<bool> m_shutdown;
+	std::mutex m_mutex;
 
 	bool init_event_table()
 	{
@@ -137,8 +158,9 @@ private:
 	}
 
 	//Check if thread associated with future has finished
+	//Static function, works on arbitrary futures
 	template<typename R>
-	bool is_ready(std::future<R>& future)
+	static bool is_ready(std::future<R>& future)
 	{
 		return future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 	}
@@ -150,12 +172,6 @@ private:
 			delete (it->second);
 		m_return_data.clear();
 	}
-
-	//No copy constructor, no move assignment
-	FCThreadManager(FCThreadManager&&) = delete;
-	FCThreadManager(const FCThreadManager&) = delete;
-	FCThreadManager& operator=(FCThreadManager&&) = delete;
-	FCThreadManager& operator=(const FCThreadManager&) = delete;
 };
 
 #endif
