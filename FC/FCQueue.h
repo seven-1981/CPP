@@ -55,14 +55,14 @@ public:
 		std::unique_lock<std::mutex> lock(m_mutex);
 		if (m_max_size == 0)
 		{
-			m_queue.push_front(element);
+			m_queue.push_back(element);
 			return true;
 		}
 		else
 		{
 			if (m_queue.size() < m_max_size)
 			{
-				m_queue.push_front(element);
+				m_queue.push_back(element);
 				return true;
 			}
 			else
