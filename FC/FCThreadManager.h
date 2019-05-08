@@ -85,9 +85,7 @@ public:
 			return true;
 		}
 		else
-		{
 			return false;
-		}
 	}
 
 	void shutdown()
