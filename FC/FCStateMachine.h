@@ -1,7 +1,6 @@
 #ifndef _FCSTATEMACHINE_H
 #define _FCSTATEMACHINE_H
 
-#include <map>
 #include <atomic>
 #include <mutex>
 
@@ -14,7 +13,7 @@ public:
 	FCStateMachine() : 
 	  m_current_state(0),
 	  m_previous_state(0) { m_quit.store(false); }
-	~FCStateMachine() { }
+	~FCStateMachine() { clear_states(); }
 
 	bool init_state(const int state_id, FuncType function_loop, FuncType function_init = nullptr, FuncType function_exit = nullptr)
 	{
@@ -73,8 +72,8 @@ private:
 	//Start executing states - asynchronously executed by start method
 	void loop()
 	{
-		FCState* pStateCurrent = nullptr;
-		FCState* pStatePrevious = nullptr;
+		//Declare pointer outside while scope
+		FCState* pStateCurrent = nullptr; FCState* pStatePrevious = nullptr;
 		while (m_quit.load() == false)
 		{
 			//Critical section starts here
@@ -105,7 +104,7 @@ private:
 			//Execute current state
 			pStateCurrent->execute();
 		}
-		//Check if pStateCurrent has been assigned to
+		//Check if while has been executed at least once
 		if (pStateCurrent == nullptr)
 			return;
 		//Ensure exit state is called after stop command
@@ -114,6 +113,14 @@ private:
 			pStateCurrent->set_exit();
 			pStateCurrent->execute();
 		}
+	}
+
+	//Delete elements in container
+	void clear_states()
+	{
+		for (std::map<const int, FCState*>::iterator it = m_states.begin(); it != m_states.end(); it++)
+			delete (it->second);
+		m_states.clear();
 	}
 };
 
