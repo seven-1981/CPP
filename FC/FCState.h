@@ -2,6 +2,7 @@
 #define _FCSTATE_H
 
 #include <functional>
+#include <map>
 
 typedef enum FCState_State
 {
