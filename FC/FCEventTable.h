@@ -17,7 +17,7 @@ public:
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		//Create new event entry and store function inside
-		FCEvent<T>* pEvent = new FCEvent<T>();
+		FCEvent<T>* pEvent = new FCEvent<T>;
 		pEvent->function = function;
 		//Evaluate result of emplace - meaning entry not already present
 		auto result = m_event_table.emplace(event_id, pEvent);
