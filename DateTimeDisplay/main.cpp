@@ -140,7 +140,6 @@ int main(int argc, char **argv)
 	bool successful = false;
 	init_map();
 	//Initialize window manager and start window
-
   	FCWindowManager::init(argc, argv);
 	FCWindowParam_t win_param { 500, 250, TITLE, true };
 	FCWindow* window1 = FCWindowManager::create(TypeWindowLabel, win_param);
