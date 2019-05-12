@@ -42,6 +42,11 @@ public:
 			return false;
 	}
 	
+	void update_url(std::string& url)
+	{
+		m_url = url;
+	}
+	
 private:
 	std::string m_url;
 	CURL* m_curl;
