@@ -33,6 +33,7 @@ public:
 			return temp_string;
 		if (JSONParser::remove_quotes(temp_string) == false)
 			return data;
+		JSONParser::replace_umlaute(temp_string);
 		return temp_string;
 	}
 	
@@ -92,6 +93,50 @@ private:
 			return false;
 		data = temp_string.substr(0, temp_string.length() - 1);
 		return true;
+	}
+	
+	static void replace_umlaute(std::string& data)
+	{
+		std::string result { };
+		//Umlaut start code
+		char uml = 195;
+		//German umlaut codes - probably platform dependent
+		char AE = 132; char OE = 150; char UE = 156;
+		char ae = 164; char oe = 182; char ue = 188;
+		bool umlaut = false;
+		for (char c : data)
+		{
+			if (c == uml)
+			{
+				//Umlaut detected, set flag
+				umlaut = true;
+				continue;
+			}
+			if (umlaut == true)
+			{
+				//Previous character was umlaut detection
+				//now detect type and replace it
+				if (c == AE)
+					result.push_back('A');
+				else if (c == OE)
+					result.push_back('O');
+				else if (c == UE)
+					result.push_back('U');
+				else if (c == ae)
+					result.push_back('a');
+				else if (c == oe)
+					result.push_back('o');
+				else if (c == ue)
+					result.push_back('u');
+				else { //Discard character
+				}
+				result.push_back('e');
+				umlaut = false;
+			}
+			else
+				result.push_back(c);
+		}
+		data = result;
 	}
 };
 
