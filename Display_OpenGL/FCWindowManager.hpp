@@ -13,7 +13,8 @@ class FCWindow;
 enum FCWindowType_e
 {
 	TypeWindowLabel,
-	TypeWindowSpectrum
+	TypeWindowSpectrum,
+	TypeWindowGraph
 };
 
 //Struct for window parameters forward declaration
