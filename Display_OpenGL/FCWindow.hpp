@@ -25,6 +25,12 @@ struct FCWindowParam_t
 	int size;			//Size of data
 };
 
+//Base struct for data size information
+struct FCWindowSize_t
+{
+	virtual ~FCWindowSize_t() { };
+};
+
 //Base window class
 class FCWindow
 {
@@ -32,8 +38,9 @@ public:
 	virtual ~FCWindow();
 
 	//Public update method
-	//Uses pointer to 
 	virtual void update(FCWindowData_t*) = 0;
+	//Public parameter set method
+	virtual void set_param(FCWindowSize_t*) { };
 	
 	//Getter function for window parameters
 	int get_width();
@@ -69,6 +76,7 @@ protected:
 private:
 	//Handle for accessing window by ID
 	int handle;
+
 	//Fullscreen flag
 	bool fullscreen;
 
