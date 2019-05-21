@@ -73,6 +73,8 @@ private:
 	
 	static bool valid_number(std::string& number_str)
 	{
+		if (number_str.length() == 0)
+			return false;
 		bool valid = true;
 		for (char c : number_str)
 		{
