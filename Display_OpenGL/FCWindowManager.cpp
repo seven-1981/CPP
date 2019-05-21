@@ -26,7 +26,6 @@ FCWindow* FCWindowManager::create(FCWindowType_e type, FCWindowParam_t& param)
 			return pWindow;
 			break;
 		
-		/*
 		case TypeWindowSpectrum:	
 			//Create new window
 			pWindow = new FCWindowSpectrum(param);
@@ -34,7 +33,6 @@ FCWindow* FCWindowManager::create(FCWindowType_e type, FCWindowParam_t& param)
 			FCWindowManager::add_window(pWindow);
 			return pWindow;
 			break;
-		*/
 		
 		case TypeWindowGraph:
 			//Create new window
