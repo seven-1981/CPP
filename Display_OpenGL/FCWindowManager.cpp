@@ -1,6 +1,6 @@
 #include "FCWindowManager.hpp"
 #include "FCWindowLabel.hpp"
-//#include "FCWindowSpectrum.hpp"
+#include "FCWindowSpectrum.hpp"
 #include "FCWindowGraph.hpp"
 
 #include <GL/freeglut.h>
