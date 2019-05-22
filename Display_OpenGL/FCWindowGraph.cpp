@@ -1,9 +1,9 @@
 #include "FCWindowGraph.hpp"
 #include "FCWindowAxis.hpp"
+#include "FCWindowColor.hpp"
 
 #include <GL/freeglut.h>
 #include <cmath>
-#include <iostream>
 
 //***********************************************************************************************
 // FCWindowGraph
@@ -45,33 +45,15 @@ void FCWindowGraph::update(FCWindowData_t* data)
 	
 	//Protect data
 	this->graph_mutex.lock();
+	
 	//Check if data has already been initialized
 	if (this->data_initialized == false)
 	{
-		this->data_initialized = true;
-		std::vector<double> init;
-		for (int i = 0; i < size; ++i)
-		{
-			this->data.push_back(init);
-		}
+		//Initialize data member with init vectors
+		this->init_data(size);
 	}	
-	
-	for (int i = 0; i < pWindowData->values.size(); ++i)
-	{
-		int data_size = this->data.at(i).size();
-		if (data_size >= this->size)
-		{
-			for (int j = 0; j < data_size - 1; ++j)
-			{
-				this->data.at(i).at(j) = this->data.at(i).at(j + 1);
-			}	
-			this->data.at(i).at(data_size - 1) = pWindowData->values.at(i);	
-		}
-		else
-		{
-			this->data.at(i).push_back(pWindowData->values.at(i));
-		}
-	}
+	//Update data
+	this->update_data(size, pWindowData);
 		
 	this->graph_mutex.unlock();
 }
@@ -85,9 +67,9 @@ void FCWindowGraph::display_(void)
 	//Specific member callback (called from static base 'display')
 	glutSetWindow(this->get_handle());
 
-	//Specify window for clearance
 	//Protect data
   	this->graph_mutex.lock();
+  	//Specify window for clearance
 	glScissor(this->x_border, this->y_border_bottom, this->get_width() - 2 * this->x_border, this->y_diff);
 	glEnable(GL_SCISSOR_TEST);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -95,12 +77,20 @@ void FCWindowGraph::display_(void)
 	glDisable(GL_SCISSOR_TEST);
 	glLineWidth(1.0);
 
+	//Set some color to graph
+	FCWindowColor_e color[3];
+	color[0] = FCWindowColor_e::ColorGreen;
+	color[1] = FCWindowColor_e::ColorRed;
+	color[2] = FCWindowColor_e::ColorBlue;
+
 	for (int i = 0; i < this->data.size(); ++i)
 	{
+		FCWindowColor::set(color[i]);
 		draw_lines(this->data.at(i));
 	}
 	
 	//Draw axes
+	FCWindowColor::set(FCWindowColor_e::ColorWhite);
 	this->draw_axes();
 	
 	this->graph_mutex.unlock();
@@ -159,16 +149,6 @@ void FCWindowGraph::calc_param()
 	this->m = this->y_diff / (double)(this->max_y_value - this->min_y_value);
 	this->n = -this->m * (double)this->min_y_value;
 	
-	//std::cout << "y_diff = " << y_diff << std::endl;
-	//std::cout << "x_diff = " << x_diff << std::endl;
-	//std::cout << "x_inc = " << x_inc << std::endl;
-	//std::cout << "y_max = " << y_max << std::endl;
-	//std::cout << "y_min = " << y_min << std::endl;
-	//std::cout << "x_min = " << x_min << std::endl;
-	//std::cout << "x_max = " << x_max << std::endl;
-	//std::cout << "m = " << m << std::endl;
-	//std::cout << "n = " << n << std::endl;
-	
 	//Calculation finished, set flag
 	this->params_calculated = true;
 }
@@ -210,19 +190,45 @@ void FCWindowGraph::draw_lines(std::vector<double>& data)
 		lim_val_right = std::min(lim_val_right, this->max_y_value);
 		int y_val_left = this->y_min - (int)(lim_val_left * m + n);
 		int y_val_right = this->y_min - (int)(lim_val_right * m + n);
-		//std::cout << "i / n = " << i << " / " << num_values << std::endl;
-		//std::cout << "x_left = " << x_left << std::endl;
-		//std::cout << "x_right = " << x_right << std::endl;
-		//std::cout << "lim_val_left = " << lim_val_left << std::endl;
-		//std::cout << "lim_val_right = " << lim_val_right << std::endl;
-		//std::cout << "y_val_left = " << y_val_left << std::endl;
-		//std::cout << "y_val_right = " << y_val_right << std::endl;
 
 		//Draw line
 		glBegin(GL_LINES);
 		glVertex3f(x_left, y_val_left, 0.0);
 		glVertex3f(x_right, y_val_right, 0.0);
 		glEnd();
+	}	
+}
+
+void FCWindowGraph::init_data(int size)
+{
+	//Initialize vector with data vectors
+	this->data_initialized = true;
+	std::vector<double> init;
+	for (int i = 0; i < size; ++i)
+	{
+		this->data.push_back(init);
+	}	
+}
+
+void FCWindowGraph::update_data(int size, FCWindowGraphData_t* pData)
+{
+	//We got a few new values inside pData
+	//Add to existing data, if vectors are full, shift values
+	for (int i = 0; i < size; ++i)
+	{
+		int data_size = this->data.at(i).size();
+		if (data_size >= this->size)
+		{
+			for (int j = 0; j < data_size - 1; ++j)
+			{
+				this->data.at(i).at(j) = this->data.at(i).at(j + 1);
+			}	
+			this->data.at(i).at(data_size - 1) = pData->values.at(i);	
+		}
+		else
+		{
+			this->data.at(i).push_back(pData->values.at(i));
+		}
 	}	
 }
 
