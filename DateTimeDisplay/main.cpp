@@ -37,11 +37,9 @@ const int Y_MARGIN = 100;
 const int Y_LINE_OFFSET = 43;
 const int SECONDS_WAIT = 30;
 //URL for http weather request - sample
-const std::string url_openweathermap = "https://samples.openweathermap.org/data/2.5/weather?lat=47.319542 \
-  &lon=8.051965&appid=b6907d289e10d714a6e88b30761fae22";
+const std::string url_openweathermap = "https://samples.openweathermap.org/data/2.5/weather?lat=47.319542&lon=8.051965&appid=b6907d289e10d714a6e88b30761fae22";
 //URL for http weather request - real data
-const std::string url_req = "https://api.openweathermap.org/data/2.5/weather?lat=47.319542&lon=8.051965 \
-  &appid=889a052df8efc1c1c0235058b557c1c9&lang=de";
+const std::string url_req = "https://api.openweathermap.org/data/2.5/weather?lat=47.319542&lon=8.051965&appid=889a052df8efc1c1c0235058b557c1c9&lang=de";
 //Constants for coordinate selection
 const double LAT_MIN = 46.731;
 const double LAT_MAX = 47.580;
