@@ -37,9 +37,11 @@ const int Y_MARGIN = 100;
 const int Y_LINE_OFFSET = 43;
 const int SECONDS_WAIT = 30;
 //URL for http weather request - sample
-const std::string url_openweathermap = "https://samples.openweathermap.org/data/2.5/weather?lat=47.319542&lon=8.051965&appid=b6907d289e10d714a6e88b30761fae22";
+const std::string url_openweathermap = "https://samples.openweathermap.org/data/2.5/weather?lat=47.319542 \
+  &lon=8.051965&appid=b6907d289e10d714a6e88b30761fae22";
 //URL for http weather request - real data
-const std::string url_req = "https://api.openweathermap.org/data/2.5/weather?lat=47.319542&lon=8.051965&appid=889a052df8efc1c1c0235058b557c1c9&lang=de";
+const std::string url_req = "https://api.openweathermap.org/data/2.5/weather?lat=47.319542&lon=8.051965 \
+  &appid=889a052df8efc1c1c0235058b557c1c9&lang=de";
 //Constants for coordinate selection
 const double LAT_MIN = 46.731;
 const double LAT_MAX = 47.580;
@@ -51,6 +53,9 @@ std::mt19937 gen(rd());
 //Uniform distribution for coordinates
 std::uniform_real_distribution<> dis_lat(LAT_MIN, LAT_MAX);
 std::uniform_real_distribution<> dis_lon(LON_MIN, LON_MAX);	
+//Constants for alt-tab simulation
+const int KEY_WAIT_US = 5000;
+const char* KEY_ALT_TAB = "Alt_L+Tab";
 
 //Weather item holding data for parsing and display
 //info whether it is a value or a string
@@ -61,9 +66,11 @@ struct WeatherItem
 	const std::string unit;		//Unit for measurement value
 	bool is_value;				//TRUE = is measurement value
 };
+
 //Map for weather data identifiers
 std::map<unsigned int, WeatherItem> weather_items;
 const int NUM_WEATHER_ITEMS = 10;
+
 //Fill map with desired items to display
 void init_map()
 {
@@ -201,7 +208,7 @@ void prepare_weather_data(std::string& weather_data, FCWindowLabelData_t& displa
 void simulate_alt_tab()
 {
 	xdo_t* x = xdo_new(NULL);
-	xdo_send_keysequence_window(x, CURRENTWINDOW, "Alt_L+Tab", 100000);
+	xdo_send_keysequence_window(x, CURRENTWINDOW, KEY_ALT_TAB, KEY_WAIT_US);
 	xdo_free(x);
 }
 
@@ -216,7 +223,6 @@ int main(int argc, char **argv)
 	init_map();
 
 	//Initialize window manager and start window
-
   	FCWindowManager::init(argc, argv);
 	FCWindowParam_t win_param { 500, 250, TITLE, true };
 	FCWindow* window1 = FCWindowManager::create(FCWindowType_e::TypeWindowLabel, win_param);
