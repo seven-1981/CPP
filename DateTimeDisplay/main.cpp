@@ -6,6 +6,11 @@
 #include <map>
 #include <random>
 
+//Allowing C-header file to be compiled with C++
+extern "C" {
+#include <xdo.h>
+}
+
 #include "FCWindow.hpp"
 #include "FCWindowManager.hpp"
 #include "FCWindowLabel.hpp"
@@ -54,7 +59,7 @@ struct WeatherItem
 	const std::string id;		//Openweathermap identifier
 	const std::string title;	//Title to diplay on screen
 	const std::string unit;		//Unit for measurement value
-	bool is_value;			//TRUE = is measurement value
+	bool is_value;				//TRUE = is measurement value
 };
 //Map for weather data identifiers
 std::map<unsigned int, WeatherItem> weather_items;
@@ -193,6 +198,13 @@ void prepare_weather_data(std::string& weather_data, FCWindowLabelData_t& displa
 	}
 }
 
+void simulate_alt_tab()
+{
+	xdo_t* x = xdo_new(NULL);
+	xdo_send_keysequence_window(x, CURRENTWINDOW, "Alt_L+Tab", 100000);
+	xdo_free(x);
+}
+
 int main(int argc, char **argv)
 
 {
@@ -207,9 +219,9 @@ int main(int argc, char **argv)
 
   	FCWindowManager::init(argc, argv);
 	FCWindowParam_t win_param { 500, 250, TITLE, true };
-	FCWindow* window1 = FCWindowManager::create(TypeWindowLabel, win_param);
+	FCWindow* window1 = FCWindowManager::create(FCWindowType_e::TypeWindowLabel, win_param);
 	win_param.size = 501;
-	FCWindow* window2 = FCWindowManager::create(TypeWindowGraph, win_param);
+	FCWindow* window2 = FCWindowManager::create(FCWindowType_e::TypeWindowGraph, win_param);
 	FCWindowGraphSize_t graph_size;
 	graph_size.max_x_value = 500;
 	window2->set_param(&graph_size);
@@ -254,8 +266,10 @@ int main(int argc, char **argv)
 			
 		//Update window data
 		window1->update(&display_data);
-		std::this_thread::sleep_for(std::chrono::seconds(SECONDS_WAIT));
+		std::this_thread::sleep_for(std::chrono::seconds(SECONDS_WAIT / 2));
+		simulate_alt_tab();
 		main_cycle++;
+		std::this_thread::sleep_for(std::chrono::seconds(SECONDS_WAIT / 2));
 	}
 	
   	std::this_thread::sleep_for(std::chrono::seconds(1));
