@@ -1,6 +1,6 @@
 #include "FCWindowManager.hpp"
 #include "FCWindowLabel.hpp"
-#include "FCWindowSpectrum.hpp"
+//#include "FCWindowSpectrum.hpp"
 #include "FCWindowGraph.hpp"
 
 #include <GL/freeglut.h>
@@ -18,7 +18,7 @@ FCWindow* FCWindowManager::create(FCWindowType_e type, FCWindowParam_t& param)
 	FCWindow* pWindow;
 	switch (type)
 	{
-		case TypeWindowLabel:
+		case FCWindowType_e::TypeWindowLabel:
 			//Create new window
 			pWindow = new FCWindowLabel(param);
 			//Update static map (handle and instance)
@@ -26,7 +26,7 @@ FCWindow* FCWindowManager::create(FCWindowType_e type, FCWindowParam_t& param)
 			return pWindow;
 			break;
 		
-		case TypeWindowSpectrum:	
+		case FCWindowType_e::TypeWindowSpectrum:	
 			//Create new window
 			pWindow = new FCWindowSpectrum(param);
 			//Update static map (handle and instance)
@@ -34,7 +34,7 @@ FCWindow* FCWindowManager::create(FCWindowType_e type, FCWindowParam_t& param)
 			return pWindow;
 			break;
 		
-		case TypeWindowGraph:
+		case FCWindowType_e::TypeWindowGraph:
 			//Create new window
 			pWindow = new FCWindowGraph(param);
 			//Update static map (handle and instance)
