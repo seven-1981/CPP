@@ -10,7 +10,7 @@
 class FCWindow;
 
 //Enumeration for window types
-enum FCWindowType_e
+enum class FCWindowType_e
 {
 	TypeWindowLabel,
 	TypeWindowSpectrum,
