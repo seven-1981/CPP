@@ -56,11 +56,11 @@ private:
 	bool data_initialized;
 	
 	//Adjustable graphic parameters
-	int size;				//Number of x values
-	int y_diff;				//Height of graph
-	int x_diff;				//Width of graph
+	int size;			//Number of x values
+	int y_diff;			//Height of graph
+	int x_diff;			//Width of graph
 	int x_border;			//Distance window border - graph sides
-	int y_border_bottom;	//Distance window border - graph bottom
+	int y_border_bottom;		//Distance window border - graph bottom
 	int y_border_top;		//Distance window border - graph top
 	double max_x_value;		//Maximal x axis value
 	double min_x_value;		//Minimal x axis value
@@ -68,13 +68,13 @@ private:
 	double min_y_value;		//Minimal y axis value
 
 	//Auxiliary parameters
-	int y_max;				//Top y coordinate of graph
-	int y_min;				//Bottom y coordinate of graph
-	int x_max;				//Left x coordinate of graph
-	int x_min;				//Right x coordinate of graph
+	int y_max;			//Top y coordinate of graph
+	int y_min;			//Bottom y coordinate of graph
+	int x_max;			//Left x coordinate of graph
+	int x_min;			//Right x coordinate of graph
 	double x_inc;			//Increment on x axis
-	double m;				//Gain for scale
-	double n;				//Offset for scale
+	double m;			//Gain for scale
+	double n;			//Offset for scale
 
 	//Helper functions for displaying text
 	void output(int, int, std::string);
@@ -87,6 +87,10 @@ private:
 	void draw_axes();
 	//Draw lines of one graph
 	void draw_lines(std::vector<double>&);
+	//Init data
+	void init_data(int);
+	//Update data
+	void update_data(int, FCWindowGraphData_t*);
 
 	//Member callbacks - must be overridden by derived class
 	void display_(void);
