@@ -1,82 +1,59 @@
-#ifndef _WEATHERCOLLECTOR_H
-#define _WEATHERCOLLECTOR_H
+#ifndef _WEATHERITEMCONFIGURATOR_H
+#define _WEATHERITEMCONFIGURATOR_H
 
-#include <curl/curl.h>
+#include <map>
 #include <string>
 
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
-}
+#include "FCWindowLabel.hpp"
 
-class WeatherCollector
+//Title for window
+const std::string TITLE_DISP = "* PI - HOLE *";
+//Description string for date and time
+const std::string DESC_TIME = "ZEIT: ";
+const std::string DESC_DATE = "DATUM: ";
+
+//Constants for time/date string extraction
+const int DATE_START = 0;
+const int DATE_LENGTH = 10;
+const int TIME_START = 11;
+const int TIME_LENGTH = 5;
+
+//Constants for location of text
+const int TITLE_X = 240; 
+const int TITLE_Y = 50;
+const int X_MARGIN = 50; 
+const int X_MARGIN_STATION = 350;
+const int X_MARGIN_SECOND_ROW = 600; 
+const int Y_MARGIN = 100; 
+const int Y_LINE_OFFSET = 43;
+
+//Weather item holding data for parsing and display
+//info whether it is a value or a string
+struct WeatherItem
+{
+	const std::string id;		//Openweathermap identifier
+	const std::string title;	//Title to diplay on screen
+	const std::string unit;		//Unit for measurement value
+	bool is_value;				//TRUE = is measurement value
+};
+
+class WeatherItemConfigurator
 {
 public:
-	WeatherCollector() : 
-	  m_url(""), m_initialized(false)
-	{
-		//Default constructor
-	}
-
-	WeatherCollector(const std::string& url) : 
-	  m_url(url), m_initialized(false)
-	{
-		init();
-	}
+	WeatherItemConfigurator();
+	~WeatherItemConfigurator();
 	
-	~WeatherCollector() { curl_easy_cleanup(m_curl); }
-	
-	bool request(std::string& data)
-	{
-		if (m_initialized == false)
-			return false;
-		
-		reset();
-		if (curl_easy_perform(m_curl) == CURLE_OK)
-		{
-			data = m_readBuffer;
-			return true;
-		}
-		else
-			return false;
-	}
-	
-	void update_url(std::string& url)
-	{
-		m_url = url;
-		init();
-	}
+	void prepare_time_data(FCWindowLabelData_t&, FCWindowLabelDataItem_t&);
+	void prepare_weather_data(std::string&, FCWindowLabelData_t&, FCWindowLabelDataItem_t&);
 	
 private:
-	std::string m_url;
-	CURL* m_curl;
-	std::string m_readBuffer;
-	bool m_initialized;
+	//Map for weather data identifiers
+	std::map<unsigned int, WeatherItem> weather_items;
 	
-	void reset()
-	{
-		m_readBuffer.clear();
-		curl_easy_reset(m_curl);
-		curl_easy_setopt(m_curl, CURLOPT_URL, m_url.c_str());
-		curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-		curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &m_readBuffer);
-	}	
-	
-	void init()
-	{
-		if (m_initialized == false)
-		{
-			m_curl = curl_easy_init();
-		}
-		if (m_curl)
-		{
-			reset();
-			m_initialized = true;
-		}
-		else
-			m_initialized = false;		
-	}
+	//Fill map with desired items to display
+	void init_map();
+	//Create timestamp and date
+	void create_timestamp(std::string&, std::string&);
 };
 
 #endif
