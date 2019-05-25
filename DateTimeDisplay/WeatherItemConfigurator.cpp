@@ -4,6 +4,7 @@
 
 #include "WeatherItemConfigurator.hpp"
 #include "JSONParser.hpp"
+#include "WeatherItems.hpp"
 
 
 WeatherItemConfigurator::WeatherItemConfigurator()
@@ -18,26 +19,26 @@ WeatherItemConfigurator::~WeatherItemConfigurator()
 
 void WeatherItemConfigurator::init_map()
 {
-	WeatherItem weather_cond { "description", ""              , ""     , false };
-	WeatherItem temperature  { "temp"       , "TEMPERATUR:"   , " degC", true };
-	WeatherItem temp_min     { "temp_min"   , "TEMP. MIN:"    , " degC", true };
-	WeatherItem temp_max     { "temp_max"   , "TEMP. MAX:"    , " degC", true };
-	WeatherItem pressure     { "pressure"   , "LUFTDRUCK:"    , " hPa" , true };
-	WeatherItem humidity     { "humidity"   , "FEUCHTE:"      , " %"   , true };
-	WeatherItem wind_speed   { "speed"      , "WINDSTAERKE:"  , " m/s" , true };
-	WeatherItem wind_dir     { "deg"        , "WINDRICHTUNG:" , " deg" , true };
-	WeatherItem cloudiness   { "all"        , "WOLKENDECKE:"  , " %"   , true };
-	WeatherItem station      { "name"       , "STATION: "     , ""     , false };
-	weather_items.emplace(0, weather_cond);
-	weather_items.emplace(1, temperature);
-	weather_items.emplace(2, temp_min);
-	weather_items.emplace(3, temp_max);
-	weather_items.emplace(4, pressure);
-	weather_items.emplace(5, humidity);
-	weather_items.emplace(6, wind_speed);
-	weather_items.emplace(7, wind_dir);
-	weather_items.emplace(8, cloudiness);
-	weather_items.emplace(9, station);
+	WeatherItem weather_cond { ITEM_DESC, DESC_DESC, UNIT_DESC, false };
+	WeatherItem temperature  { ITEM_TEMP, DESC_TEMP, UNIT_TEMP, true };
+	WeatherItem temp_min     { ITEM_TMIN, DESC_TMIN, UNIT_TMIN, true };
+	WeatherItem temp_max     { ITEM_TMAX, DESC_TMAX, UNIT_TMAX, true };
+	WeatherItem pressure     { ITEM_PRES, DESC_PRES, UNIT_PRES, true };
+	WeatherItem humidity     { ITEM_HUMI, DESC_HUMI, UNIT_HUMI, true };
+	WeatherItem wind_speed   { ITEM_WSPD, DESC_WSPD, UNIT_WSPD, true };
+	WeatherItem wind_dir     { ITEM_WDIR, DESC_WDIR, UNIT_WDIR, true };
+	WeatherItem cloudiness   { ITEM_CLDN, DESC_CLDN, UNIT_CLDN, true };
+	WeatherItem station      { ITEM_STAT, DESC_STAT, UNIT_STAT, false };
+	weather_items.emplace(ItemDescription, 		weather_cond);
+	weather_items.emplace(ItemTemperature, 		temperature);
+	weather_items.emplace(ItemTemperatureMin, 	temp_min);
+	weather_items.emplace(ItemTemperatureMax, 	temp_max);
+	weather_items.emplace(ItemPressure, 		pressure);
+	weather_items.emplace(ItemHumidity, 		humidity);
+	weather_items.emplace(ItemWindSpeed, 		wind_speed);
+	weather_items.emplace(ItemWindDirection, 	wind_dir);
+	weather_items.emplace(ItemCloudiness, 		cloudiness);
+	weather_items.emplace(ItemStation, 			station);
 }
 
 void WeatherItemConfigurator::create_timestamp(std::string& date, std::string& time)
@@ -58,8 +59,8 @@ void WeatherItemConfigurator::prepare_time_data(FCWindowLabelData_t& display_dat
 	//Create timestamp and time string
 	std::string date, time;
 	create_timestamp(date, time);
-	date = "DATUM: " + date;
-	time = "ZEIT: " + time;	
+	date = DESC_DATE + date;
+	time = DESC_TIME + time;	
 	//Create title
 	element.text = TITLE_DISP;
 	element.x = TITLE_X; element.y = TITLE_Y;
@@ -103,9 +104,9 @@ void WeatherItemConfigurator::prepare_weather_data(std::string& weather_data, FC
 			disp_string = JSONParser::get_string(weather_data, item.id);
 		disp_string += item.unit;
 		//First and last weather item has different location
-		if (i == 0)
+		if (i == (int)ItemDescription)
 			element.x = X_MARGIN;
-		else if (i == NUM_WEATHER_ITEMS - 1)
+		else if (i == (int)ItemStation)
 			element.x = X_MARGIN_STATION;
 		else
 			element.x = X_MARGIN_SECOND_ROW;
