@@ -48,7 +48,6 @@ int main(int argc, char **argv)
 	unsigned int main_cycle = 0;
 
 	//Initialize window manager and start window 1 - text display
-
   	FCWindowManager::init(argc, argv);
 	FCWindowParam_t win_param { SIZE_X_INIT, SIZE_Y_INIT, TITLE, true };
 	FCWindow* window1 = FCWindowManager::create(FCWindowType_e::TypeWindowLabel, win_param);
@@ -122,5 +121,4 @@ int main(int argc, char **argv)
 	delete window2;
 
   	return 0;
-
 }
