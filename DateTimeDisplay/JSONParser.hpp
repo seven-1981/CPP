@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "WeatherItems.hpp"
+
 class JSONParser
 {
 public:
@@ -16,7 +18,8 @@ public:
 		{
 			if (JSONParser::valid_number(temp_string) == true)
 			{
-				if (identifier.substr(0, 4) == "temp")
+				std::size_t temp_len = ITEM_TEMP.length();
+				if (identifier.substr(0, temp_len) == ITEM_TEMP)
 					return JSONParser::to_celsius(std::stod(temp_string));
 				else
 					return std::stod(temp_string);
@@ -100,11 +103,6 @@ private:
 	static void replace_umlaute(std::string& data)
 	{
 		std::string result { };
-		//Umlaut start code
-		char uml = 195;
-		//German umlaut codes - probably platform dependent
-		char AE = 132; char OE = 150; char UE = 156;
-		char ae = 164; char oe = 182; char ue = 188;
 		bool umlaut = false;
 		for (char c : data)
 		{
