@@ -13,16 +13,16 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
 class WeatherCollector
 {
 public:
-	WeatherCollector(const std::string& url) : m_url(url)
+	WeatherCollector() : 
+	  m_url(""), m_initialized(false)
 	{
-		m_curl = curl_easy_init();
-		if (m_curl)
-		{
-			init();
-			m_initialized = true;
-		}
-		else
-			m_initialized = false;
+		//Default constructor
+	}
+
+	WeatherCollector(const std::string& url) : 
+	  m_url(url), m_initialized(false)
+	{
+		init();
 	}
 	
 	~WeatherCollector() { curl_easy_cleanup(m_curl); }
@@ -32,7 +32,7 @@ public:
 		if (m_initialized == false)
 			return false;
 		
-		init();
+		reset();
 		if (curl_easy_perform(m_curl) == CURLE_OK)
 		{
 			data = m_readBuffer;
@@ -45,6 +45,7 @@ public:
 	void update_url(std::string& url)
 	{
 		m_url = url;
+		init();
 	}
 	
 private:
@@ -53,7 +54,7 @@ private:
 	std::string m_readBuffer;
 	bool m_initialized;
 	
-	void init()
+	void reset()
 	{
 		m_readBuffer.clear();
 		curl_easy_reset(m_curl);
@@ -61,6 +62,21 @@ private:
 		curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 		curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &m_readBuffer);
 	}	
+	
+	void init()
+	{
+		if (m_initialized == false)
+		{
+			m_curl = curl_easy_init();
+		}
+		if (m_curl)
+		{
+			reset();
+			m_initialized = true;
+		}
+		else
+			m_initialized = false;		
+	}
 };
 
 #endif
