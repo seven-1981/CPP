@@ -15,10 +15,15 @@ extern "C" {
 #include "JSONParser.hpp"
 #include "WeatherCollector.hpp"
 #include "WeatherItemConfigurator.hpp"
+#include "WeatherItems.hpp"
 #include "URLModifier.hpp"
 
 //Constants for displaying text
 const std::string TITLE = "RASPI - PI HOLE";
+const int SIZE_X_INIT = 500;
+const int SIZE_Y_INIT = 250;
+//Graph window data/axis size
+const int SIZE_GRAPH_DATA = 500;
 //Cycle time wait period used in main
 const int SECONDS_WAIT = 30;
 
@@ -43,14 +48,15 @@ int main(int argc, char **argv)
 	unsigned int main_cycle = 0;
 
 	//Initialize window manager and start window 1 - text display
+
   	FCWindowManager::init(argc, argv);
-	FCWindowParam_t win_param { 500, 250, TITLE, true };
+	FCWindowParam_t win_param { SIZE_X_INIT, SIZE_Y_INIT, TITLE, true };
 	FCWindow* window1 = FCWindowManager::create(FCWindowType_e::TypeWindowLabel, win_param);
-	win_param.size = 501;
+	win_param.size = SIZE_GRAPH_DATA; // + 1 for proper scaling tick length
 	FCWindow* window2 = FCWindowManager::create(FCWindowType_e::TypeWindowGraph, win_param);
 	//Initialize window 2 - graph display
 	FCWindowGraphSize_t graph_size;
-	graph_size.max_x_value = 500;
+	graph_size.max_x_value = SIZE_GRAPH_DATA;
 	window2->set_param(&graph_size);
 	
 	//Start must be called after first window has been created
@@ -91,9 +97,9 @@ int main(int argc, char **argv)
 			//Add temperature to graph
 			if (main_cycle % 2 == 0)
 			{
-				double temperature = JSONParser::get_value(weather_data, "temp");
-				double temperature_max = JSONParser::get_value(weather_data, "temp_max");
-				double temperature_min = JSONParser::get_value(weather_data, "temp_min");
+				double temperature = JSONParser::get_value(weather_data, ITEM_TEMP);
+				double temperature_max = JSONParser::get_value(weather_data, ITEM_TMAX);
+				double temperature_min = JSONParser::get_value(weather_data, ITEM_TMIN);
 				graph_data.values.at(0) = temperature;
 				graph_data.values.at(1) = temperature_max;
 				graph_data.values.at(2) = temperature_min;
